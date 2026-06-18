@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 // Import Components
 import Navbar from './components/Navbar';
 import DashboardLayout from './components/DashboardLayout';
+import Footer from './components/Footer';
 
 // Import Pages
 import Home from './pages/Home';
@@ -21,12 +22,38 @@ import ViewExams from './pages/ViewExams';
 import ExamDetail from './pages/ExamDetail';
 import Settings from './pages/Settings';
 import AIGenerator from './pages/AIGenerator';
+import Pricing from './pages/Pricing';
+import Security from './pages/Security';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import Terms from './pages/Terms';
+import Contact from './pages/Contact';
+import NotFound from './pages/NotFound';
 
 function App() {
   const router = createBrowserRouter([
     {
       path: '/',
-      element: <><Navbar /><Home /></>,
+      element: <><Navbar /><Home /><Footer /></>,
+    },
+    {
+      path: '/pricing',
+      element: <><Navbar /><Pricing /><Footer /></>,
+    },
+    {
+      path: '/security',
+      element: <><Navbar /><Security /><Footer /></>,
+    },
+    {
+      path: '/privacy-policy',
+      element: <><Navbar /><PrivacyPolicy /><Footer /></>,
+    },
+    {
+      path: '/terms',
+      element: <><Navbar /><Terms /><Footer /></>,
+    },
+    {
+      path: '/contact',
+      element: <><Navbar /><Contact /><Footer /></>,
     },
     {
       path: '/login',
@@ -76,6 +103,10 @@ function App() {
           element: <Settings />,
         }
       ]
+    },
+    {
+      path: '*',
+      element: <><Navbar /><NotFound /><Footer /></>,
     }
   ])
   return (

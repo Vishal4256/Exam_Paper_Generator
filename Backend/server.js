@@ -13,6 +13,7 @@ import aiRoutes from './src/routes/ai.route.js';
 import templateRoutes from './src/routes/template.route.js';
 import settingsRoutes from './src/routes/settings.route.js';
 import userRoutes from './src/routes/user.route.js';
+import contactRoutes from './src/routes/contact.route.js';
 
 dotenv.config();
 
@@ -94,6 +95,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/contact', contactRoutes);
 
 // ======================
 // 404 Handler
