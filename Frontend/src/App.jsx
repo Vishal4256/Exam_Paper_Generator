@@ -7,7 +7,6 @@ import 'react-toastify/dist/ReactToastify.css';
 // Import Components
 import Navbar from './components/Navbar';
 import DashboardLayout from './components/DashboardLayout';
-import Footer from './components/Footer';
 
 // Import Pages
 import Home from './pages/Home';
@@ -27,7 +26,7 @@ function App() {
   const router = createBrowserRouter([
     {
       path: '/',
-      element: <><Navbar /><Home /><Footer /></>,
+      element: <><Navbar /><Home /></>,
     },
     {
       path: '/login',
