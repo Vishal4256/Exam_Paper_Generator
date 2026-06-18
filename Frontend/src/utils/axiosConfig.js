@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
+if (!API_URL) {
+  console.error("Backend URL not configured");
+}
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: API_URL ? `${API_URL}/api` : 'http://localhost:8000/api',
   headers: {
     'Content-Type': 'application/json',
   },
