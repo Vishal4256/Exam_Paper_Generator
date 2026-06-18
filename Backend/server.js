@@ -22,20 +22,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ===============================
-// Database Connection
-// ===============================
+// ======================
+// Connect Database
+// ======================
 connectDB();
 
-// ===============================
+// ======================
 // Middleware
-// ===============================
+// ======================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ===============================
-// CORS Configuration
-// ===============================
+// ======================
+// CORS
+// ======================
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
@@ -55,17 +55,17 @@ app.use(
   })
 );
 
-// ===============================
+// ======================
 // Static Files
-// ===============================
+// ======================
 app.use(
   '/uploads',
   express.static(path.join(__dirname, 'uploads'))
 );
 
-// ===============================
+// ======================
 // Root Route
-// ===============================
+// ======================
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
@@ -73,9 +73,9 @@ app.get('/', (req, res) => {
   });
 });
 
-// ===============================
+// ======================
 // Health Check
-// ===============================
+// ======================
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
@@ -84,9 +84,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ===============================
+// ======================
 // API Routes
-// ===============================
+// ======================
 app.use('/api/auth', authRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/exams', examRoutes);
@@ -95,19 +95,19 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/users', userRoutes);
 
-// ===============================
+// ======================
 // 404 Handler
-// ===============================
-app.use('*', (req, res) => {
+// ======================
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found'
   });
 });
 
-// ===============================
+// ======================
 // Global Error Handler
-// ===============================
+// ======================
 app.use((err, req, res, next) => {
   console.error(err);
 
@@ -117,10 +117,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ===============================
+// ======================
 // Start Server
-// ===============================
+// ======================
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(
+    `🌍 Environment: ${process.env.NODE_ENV || 'development'}`
+  );
 });
