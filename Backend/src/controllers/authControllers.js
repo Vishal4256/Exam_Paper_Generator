@@ -7,16 +7,25 @@ import { sendVerificationOTP, sendPasswordResetLink, generateOTP } from '../util
 // 1. Register User - Send OTP
 const register = async (req, res) => {
     try {
+        console.log("=== Registration Process Started ===");
         const { name, email, password } = req.body;
         console.log("Registration attempt:", { name, email });
+        
+        console.log("Checking SMTP config...");
+        console.log("- SMTP_HOST exists:", !!process.env.SMTP_HOST);
+        console.log("- SMTP_PORT exists:", !!process.env.SMTP_PORT);
+        console.log("- SMTP_USER exists:", !!process.env.SMTP_USER);
+        console.log("- SMTP_PASS exists:", !!process.env.SMTP_PASS);
 
         // Check if user exists
         let user = await User.findOne({ email });
         if (user) {
             if (user.isEmailVerified) {
-                return res.status(400).json({ msg: "User already exists" });
+                console.log("User already exists and is verified.");
+                return res.status(400).json({ success: false, msg: "User already exists", message: "User already exists" });
             } else {
                 // User exists but not verified, update OTP
+                console.log("User exists but not verified. Updating OTP...");
                 const otp = generateOTP();
                 user.emailVerificationOTP = otp;
                 user.emailVerificationOTPExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
@@ -27,14 +36,29 @@ const register = async (req, res) => {
                     user.password = await bcrypt.hash(password, salt);
                 }
                 await user.save();
+                console.log("User updated successfully in DB:", user._id);
                 
                 // Send OTP email
-                await sendVerificationOTP(email, otp);
-                return res.status(200).json({ msg: "OTP sent to your email. Please verify to complete registration." });
+                console.log("Attempting to send verification email to:", email);
+                let emailSent = false;
+                try {
+                    await sendVerificationOTP(email, otp);
+                    emailSent = true;
+                    console.log("Verification email sent successfully.");
+                } catch (emailError) {
+                    console.error('Email sending error during update:', emailError);
+                }
+
+                if (emailSent) {
+                    return res.status(200).json({ success: true, message: "Account updated successfully. Please verify your email.", msg: "Account updated successfully. Please verify your email." });
+                } else {
+                    return res.status(200).json({ success: true, message: "Account updated successfully. Verification email could not be sent.", msg: "Account updated successfully. Verification email could not be sent." });
+                }
             }
         }
 
         // Hash password
+        console.log("Hashing password...");
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -42,6 +66,7 @@ const register = async (req, res) => {
         const otp = generateOTP();
 
         // Create new user with unverified email
+        console.log("Creating new user in database...");
         user = new User({ 
             name, 
             email, 
@@ -50,14 +75,28 @@ const register = async (req, res) => {
             emailVerificationOTPExpires: Date.now() + 10 * 60 * 1000 // 10 minutes
         });
         await user.save();
+        console.log("User successfully created in DB:", user._id);
 
         // Send OTP email
-        await sendVerificationOTP(email, otp);
+        console.log("Attempting to send verification email to:", email);
+        let emailSent = false;
+        try {
+            await sendVerificationOTP(email, otp);
+            emailSent = true;
+            console.log("Verification email sent successfully.");
+        } catch (emailError) {
+            console.error('Email sending error during registration:', emailError);
+        }
 
-        res.status(201).json({ msg: "OTP sent to your email. Please verify to complete registration." });
+        console.log("Sending final registration response. Email status:", emailSent);
+        if (emailSent) {
+            res.status(201).json({ success: true, message: "Account created successfully. Please verify your email.", msg: "Account created successfully. Please verify your email." });
+        } else {
+            res.status(201).json({ success: true, message: "Account created successfully. Verification email could not be sent.", msg: "Account created successfully. Verification email could not be sent." });
+        }
     } catch (err) {
         console.error('Registration error:', err);
-        res.status(500).json({ msg: "Server Error: " + err.message });
+        res.status(500).json({ success: false, msg: "Server Error: " + err.message, message: "Server Error: " + err.message });
     }
 };
 
