@@ -26,14 +26,6 @@ const UserSchema = new mongoose.Schema({
         type: Date,
         default: undefined
     },
-    forgotPasswordOTP: {
-        type: String,
-        default: undefined
-    },
-    forgotPasswordOTPExpires: {
-        type: Date,
-        default: undefined
-    },
     theme: {
         type: String,
         enum: ['light', 'dark'],

@@ -15,6 +15,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Questions from './pages/Questions';
 import GenerateExam from './pages/GenerateExam';
@@ -70,6 +71,10 @@ function App() {
     {
       path: '/forgot-password',
       element: <ForgotPassword />,
+    },
+    {
+      path: '/reset-password/:token',
+      element: <ResetPassword />,
     },
     {
       element: <DashboardLayout />,

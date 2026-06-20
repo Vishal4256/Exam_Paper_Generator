@@ -78,27 +78,40 @@ export const sendVerificationOTP = async (email, otp) => {
     }
 };
 
-// Send OTP email for password reset
-export const sendPasswordResetOTP = async (email, otp) => {
+// Send Password Reset Link email
+export const sendPasswordResetLink = async (email, name, resetLink) => {
     try {
         const transporter = createTransporter();
         
         const mailOptions = {
             from: `"${process.env.APP_NAME || 'Exam Paper Generator'}" <${process.env.SMTP_USER}>`,
             to: email,
-            subject: 'Password Reset OTP',
+            subject: 'Reset Your ExamFlow Password',
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
                     <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h2 style="color: #333; text-align: center; margin-bottom: 20px;">Password Reset Request</h2>
+                        <h2 style="color: #333; margin-bottom: 20px;">Password Reset Request</h2>
                         <p style="color: #666; font-size: 16px; line-height: 1.6;">
-                            You requested to reset your password. Please use the following OTP to proceed:
+                            Hello ${name},
                         </p>
-                        <div style="background-color: #f0f0f0; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
-                            <h1 style="color: #DC2626; font-size: 36px; letter-spacing: 8px; margin: 0; font-weight: bold;">${otp}</h1>
+                        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+                            We received a request to reset your password.
+                        </p>
+                        <p style="color: #666; font-size: 16px; line-height: 1.6;">
+                            Click below to reset:
+                        </p>
+                        <div style="margin: 30px 0;">
+                            <a href="${resetLink}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
                         </div>
                         <p style="color: #666; font-size: 14px; line-height: 1.6;">
-                            This OTP will expire in 10 minutes. If you didn't request a password reset, please ignore this email and your password will remain unchanged.
+                            Or copy and paste this link into your browser: <br/>
+                            <a href="${resetLink}" style="color: #4F46E5; word-break: break-all;">${resetLink}</a>
+                        </p>
+                        <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 20px;">
+                            This link expires in 1 hour.
+                        </p>
+                        <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                            If you didn't request this, ignore this email.
                         </p>
                         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                         <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
@@ -110,10 +123,10 @@ export const sendPasswordResetOTP = async (email, otp) => {
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log('Password reset OTP email sent: %s', info.messageId);
+        console.log('Password reset link email sent: %s', info.messageId);
         return { success: true, messageId: info.messageId };
     } catch (error) {
-        console.error('Error sending password reset OTP email:', error);
+        console.error('Error sending password reset link email:', error);
         
         // Provide more detailed error messages
         if (error.code === 'EAUTH') {

@@ -28,7 +28,14 @@ const Register = () => {
       toast.success(res.data.msg);
       navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.msg || 'Registration failed. Try a different email.');
+      console.error("Registration Request Failed:", err);
+      console.error("Response Data:", err.response?.data);
+      console.error("Response Status:", err.response?.status);
+      
+      const errorMessage = err.response?.data?.message || err.response?.data?.msg || err.message || 'Registration failed. Try a different email.';
+      
+      toast.error(errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

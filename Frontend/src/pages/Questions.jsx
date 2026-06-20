@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/axiosConfig';
-import { Search, Plus, Filter, Trash2, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Search, Plus, Filter, Trash2, Edit2, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const Questions = () => {
@@ -8,9 +8,10 @@ const Questions = () => {
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   
-  const [filters, setFilters] = useState({ subject: '', difficulty: '', type: '' });
+  const [filters, setFilters] = useState({ subject: '', difficulty: '', type: '', search: '' });
   
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newQuestion, setNewQuestion] = useState({
     questionText: '', subject: '', difficulty: 'Medium', type: 'MCQ', options: ['', '', '', ''], correctAnswer: '',
     required: true, shuffleOptions: false
@@ -28,6 +29,7 @@ const Questions = () => {
       if (filters.subject) params.subject = filters.subject;
       if (filters.difficulty) params.difficulty = filters.difficulty;
       if (filters.type) params.type = filters.type;
+      if (filters.search) params.search = filters.search;
 
       const res = await api.get('/questions', { params });
       setQuestions(res.data.questions || res.data);
@@ -78,13 +80,19 @@ const Questions = () => {
           formData.append('correctAnswer', newQuestion.correctAnswer);
       }
 
-      await api.post('/questions', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(status === 'draft' ? 'Draft saved successfully!' : 'Question added successfully!');
+      if (editingId) {
+          await api.put(`/questions/${editingId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+          toast.success('Question updated successfully!');
+      } else {
+          await api.post('/questions', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+          toast.success(status === 'draft' ? 'Draft saved successfully!' : 'Question added successfully!');
+      }
       
       setNewQuestion({
         questionText: '', subject: '', difficulty: 'Medium', type: 'MCQ', options: ['', '', '', ''], correctAnswer: '', required: true, shuffleOptions: false
       });
       setIsAddOpen(false);
+      setEditingId(null);
       fetchQuestions();
     } catch (err) {
       console.error('Error adding question:', err);
@@ -98,7 +106,23 @@ const Questions = () => {
             questionText: '', subject: '', difficulty: 'Medium', type: 'MCQ', options: ['', '', '', ''], correctAnswer: '', required: true, shuffleOptions: false
         });
         setIsAddOpen(false);
+        setEditingId(null);
     }
+  };
+
+  const handleEdit = (q) => {
+    setNewQuestion({
+        questionText: q.questionText || '',
+        subject: q.subject || '',
+        difficulty: q.difficulty || 'Medium',
+        type: q.type || 'MCQ',
+        options: q.options && q.options.length > 0 ? [...q.options, ...Array(Math.max(0, 4 - q.options.length)).fill('')] : ['', '', '', ''],
+        correctAnswer: q.correctAnswer || '',
+        required: q.required ?? true,
+        shuffleOptions: q.shuffleOptions ?? false
+    });
+    setEditingId(q._id);
+    setIsAddOpen(true);
   };
 
   const handleDelete = async (id) => {
@@ -130,7 +154,7 @@ const Questions = () => {
             <div className="mb-6 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 font-semibold">
                 <button onClick={() => setIsAddOpen(false)} className="hover:text-indigo-600 dark:hover:text-indigo-400">Questions</button>
                 <ChevronRight className="w-4 h-4" />
-                <span className="text-gray-900 dark:text-white">Add New Question</span>
+                <span className="text-gray-900 dark:text-white">{editingId ? 'Edit Question' : 'Add New Question'}</span>
             </div>
             
             <div className="mb-8">
@@ -273,11 +297,11 @@ const Questions = () => {
 
                     <div className="flex flex-col gap-3 pt-4">
                         <button type="submit" onClick={(e) => handleAddSubmit(e, 'active')} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-600/20">
-                            Add to Bank
+                            {editingId ? 'Update Question' : 'Add to Bank'}
                         </button>
-                        <button type="button" onClick={(e) => handleAddSubmit(e, 'draft')} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        {!editingId && <button type="button" onClick={(e) => handleAddSubmit(e, 'draft')} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                             Save as Draft
-                        </button>
+                        </button>}
                         <button type="button" onClick={handleCancel} className="w-full text-gray-500 dark:text-gray-400 font-bold py-3 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                             Cancel
                         </button>
@@ -332,9 +356,22 @@ const Questions = () => {
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
           
           {/* Filters Bar */}
-          <div className="flex flex-wrap items-center justify-between mb-8 pb-6 border-b border-gray-100 dark:border-gray-700 gap-4">
-              <div className="flex flex-wrap items-center gap-4">
-                  <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600">
+          <div className="flex flex-col mb-8 pb-6 border-b border-gray-100 dark:border-gray-700 gap-4">
+              <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                      type="text"
+                      placeholder="Search questions..."
+                      value={filters.search}
+                      onChange={(e) => setFilters({...filters, search: e.target.value})}
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm text-gray-900 dark:text-white"
+                  />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600">
                       <Filter className="w-4 h-4 text-gray-400 dark:text-gray-300" />
                       <span className="text-xs font-bold text-gray-600 dark:text-gray-200">Filters</span>
                   </div>
@@ -371,6 +408,7 @@ const Questions = () => {
               <button onClick={() => setFilters({subject:'', difficulty:'', type:''})} className="text-indigo-600 dark:text-indigo-400 text-sm font-bold hover:text-indigo-700 dark:hover:text-indigo-300">
                   Clear all
               </button>
+              </div>
           </div>
 
           {/* Data Table */}
@@ -395,7 +433,10 @@ const Questions = () => {
                               <td className="py-5 text-sm font-semibold text-gray-600 dark:text-gray-300">{q.subject}</td>
                               <td className="py-5">{renderBadge(q.difficulty, 'difficulty')}</td>
                               <td className="py-5 text-sm font-medium text-gray-500 dark:text-gray-400">{q.type || 'MCQ'}</td>
-                              <td className="py-5 text-right">
+                              <td className="py-5 text-right flex items-center justify-end gap-1">
+                                  <button onClick={() => handleEdit(q)} className="p-2 text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 rounded-lg transition-colors">
+                                      <Edit2 className="w-4 h-4" />
+                                  </button>
                                   <button onClick={() => handleDelete(q._id)} className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg transition-colors">
                                       <Trash2 className="w-4 h-4" />
                                   </button>
