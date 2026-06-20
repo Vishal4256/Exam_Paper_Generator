@@ -86,9 +86,27 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+import { createTransporter } from './src/utils/emailService.js';
+
 // ======================
 // API Routes
 // ======================
+app.get('/api/debug/email', async (req, res) => {
+  try {
+    const transporter = createTransporter();
+    await transporter.verify();
+    res.status(200).json({
+      success: true,
+      message: "SMTP connection successful"
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || error.toString(),
+      error: error
+    });
+  }
+});
 app.use('/api/auth', authRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/exams', examRoutes);
