@@ -1,14 +1,14 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://exam-paper-generator-1-q509.onrender.com' : 'http://localhost:8000');
 
 if (!API_URL) {
   console.error("Backend URL not configured");
 }
 
 const api = axios.create({
-  baseURL: API_URL ? `${API_URL}/api` : 'http://localhost:8000/api',
+  baseURL: `${API_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
