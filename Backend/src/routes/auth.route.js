@@ -17,7 +17,6 @@ router.post('/register', (req, res, next) => {
     console.log(`[ROUTE] POST /auth/register body:`, req.body);
     next();
 }, register);
-
 // Login route
 router.post('/login', login);
 
