@@ -6,6 +6,8 @@ import { sendVerificationOTP, sendPasswordResetLink, generateOTP } from '../util
 
 // 1. Register User - Send OTP
 const register = async (req, res) => {
+    console.time("register");
+    console.time("register-db");
     try {
         console.log("=== Registration Process Started ===");
         const { name, email, password } = req.body;
@@ -22,6 +24,8 @@ const register = async (req, res) => {
         if (user) {
             if (user.isEmailVerified) {
                 console.log("User already exists and is verified.");
+                console.timeEnd("register-db");
+                console.timeEnd("register");
                 return res.status(400).json({ success: false, msg: "User already exists", message: "User already exists" });
             } else {
                 // User exists but not verified, update OTP
@@ -37,23 +41,23 @@ const register = async (req, res) => {
                 }
                 await user.save();
                 console.log("User updated successfully in DB:", user._id);
+                console.timeEnd("register-db");
                 
-                // Send OTP email
-                console.log("Attempting to send verification email to:", email);
-                let emailSent = false;
-                try {
-                    await sendVerificationOTP(email, otp);
-                    emailSent = true;
-                    console.log("Verification email sent successfully.");
-                } catch (emailError) {
-                    console.error('Email sending error during update:', emailError);
-                }
-
-                if (emailSent) {
-                    return res.status(200).json({ success: true, message: "Account updated successfully. Please verify your email.", msg: "Account updated successfully. Please verify your email." });
-                } else {
-                    return res.status(200).json({ success: true, message: "Account updated successfully. Verification email could not be sent.", msg: "Account updated successfully. Verification email could not be sent." });
-                }
+                // Return success immediately
+                res.status(200).json({ success: true, message: "Account updated successfully. Please verify your email.", msg: "Account updated successfully. Please verify your email." });
+                console.timeEnd("register");
+                
+                // Send OTP email asynchronously
+                console.log("Attempting to send verification email (background) to:", email);
+                console.time("register-email");
+                sendVerificationOTP(email, otp).then(() => {
+                    console.timeEnd("register-email");
+                    console.log("Verification email sent successfully in background.");
+                }).catch(emailError => {
+                    console.timeEnd("register-email");
+                    console.warn('Warning: Email sending failed in background, but registration succeeded:', emailError.message);
+                });
+                return;
             }
         }
 
@@ -76,27 +80,28 @@ const register = async (req, res) => {
         });
         await user.save();
         console.log("User successfully created in DB:", user._id);
+        console.timeEnd("register-db");
 
-        // Send OTP email
-        console.log("Attempting to send verification email to:", email);
-        let emailSent = false;
-        try {
-            await sendVerificationOTP(email, otp);
-            emailSent = true;
-            console.log("Verification email sent successfully.");
-        } catch (emailError) {
-            console.error('Email sending error during registration:', emailError);
-        }
+        // Return success immediately
+        res.status(201).json({ success: true, message: "Account created successfully. Please verify your email.", msg: "Account created successfully. Please verify your email." });
+        console.timeEnd("register");
 
-        console.log("Sending final registration response. Email status:", emailSent);
-        if (emailSent) {
-            res.status(201).json({ success: true, message: "Account created successfully. Please verify your email.", msg: "Account created successfully. Please verify your email." });
-        } else {
-            res.status(201).json({ success: true, message: "Account created successfully. Verification email could not be sent.", msg: "Account created successfully. Verification email could not be sent." });
-        }
+        // Send OTP email asynchronously
+        console.log("Attempting to send verification email (background) to:", email);
+        console.time("register-email");
+        sendVerificationOTP(email, otp).then(() => {
+            console.timeEnd("register-email");
+            console.log("Verification email sent successfully in background.");
+        }).catch(emailError => {
+            console.timeEnd("register-email");
+            console.warn('Warning: Email sending failed in background, but registration succeeded:', emailError.message);
+        });
+
     } catch (err) {
         console.error('Registration error:', err);
         res.status(500).json({ success: false, msg: "Server Error: " + err.message, message: "Server Error: " + err.message });
+        try { console.timeEnd("register-db"); } catch(e){}
+        try { console.timeEnd("register"); } catch(e){}
     }
 };
 
