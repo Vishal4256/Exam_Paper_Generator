@@ -26,7 +26,7 @@ const Register = () => {
     try {
       const res = await api.post('/auth/register', formData);
       toast.success(res.data.msg);
-      navigate('/verify-email', { state: { email: formData.email } });
+      navigate('/login');
     } catch (err) {
       setError(err.response?.data?.msg || 'Registration failed. Try a different email.');
     } finally {

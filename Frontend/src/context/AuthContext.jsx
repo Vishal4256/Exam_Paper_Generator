@@ -10,7 +10,19 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem('token');
+      const loginTime = localStorage.getItem('loginTime');
+
       if (token) {
+        // Check local expiry (30 days)
+        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+        if (loginTime && Date.now() - parseInt(loginTime) > THIRTY_DAYS) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('loginTime');
+          setLoading(false);
+          return;
+        }
+
         try {
           const res = await api.get('/auth/me');
           setUser({ token, ...res.data });
@@ -24,6 +36,8 @@ export const AuthProvider = ({ children }) => {
         } catch (err) {
           console.error("Failed to load user session", err);
           localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('loginTime');
         }
       }
       setLoading(false);
@@ -33,6 +47,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = (token, userData) => {
     localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('loginTime', Date.now().toString());
     setUser({ token, ...userData });
     if (userData.theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -73,6 +89,8 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('loginTime');
     setUser(null);
   };
 
