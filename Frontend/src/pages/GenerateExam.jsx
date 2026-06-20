@@ -14,6 +14,7 @@ const GenerateExam = () => {
     institutionName: 'ACADEMIC INTELLIGENCE INSTITUTE',
     department: '',
     subject: '',
+    topic: '',
     examDate: '',
     duration: 180,
     academicSession: '',
@@ -73,6 +74,7 @@ const GenerateExam = () => {
                   instructions: exam.instructions || '',
                   examHeaderStyle: exam.examHeaderStyle || 'Style 3',
                   subject: exam.subject,
+                  topic: exam.topic || '',
                   examDate: exam.examDate ? exam.examDate.split('T')[0] : '',
                   duration: exam.duration,
                   marksDistribution: exam.marksDistribution
@@ -222,6 +224,7 @@ const GenerateExam = () => {
             instructions: '',
             examHeaderStyle: 'Style 3',
             subject: subjects[0] || '',
+            topic: '',
             examDate: '',
             duration: 180,
             marksDistribution: {
@@ -397,16 +400,20 @@ const GenerateExam = () => {
                                 </datalist>
                             </div>
                             <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Topic</label>
+                                <input type="text" required placeholder="e.g. Normalization, Quantum Mechanics" value={formData.topic} onChange={(e) => setFormData({ ...formData, topic: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                            </div>
+                            <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Exam Title</label>
                                 <input type="text" required value={formData.examTitle} onChange={(e) => setFormData({ ...formData, examTitle: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Duration (Mins)</label>
-                                <input type="number" required value={formData.duration} onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
-                            </div>
-                            <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Exam Date</label>
                                 <input type="date" value={formData.examDate} onChange={(e) => setFormData({ ...formData, examDate: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Duration (Mins)</label>
+                                <input type="number" required value={formData.duration} onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
                             </div>
                         </div>
                     </div>
@@ -516,6 +523,11 @@ const GenerateExam = () => {
                                 <span>Time: {formData.duration} Mins</span>
                                 <span>Max Marks: {totalMarks}</span>
                             </div>
+                            {formData.topic && (
+                                <div className="text-left mt-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+                                    <span>Topic: {formData.topic}</span>
+                                </div>
+                            )}
                         </div>
                     )}
                     {formData.examHeaderStyle === 'Style 2' && (
@@ -524,9 +536,12 @@ const GenerateExam = () => {
                             {formData.department && <h3 className="text-sm font-serif italic text-gray-600 dark:text-gray-400 mb-2">Department of {formData.department}</h3>}
                             <h4 className="text-md font-bold uppercase tracking-widest text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 inline-block px-4 py-1 rounded-full mb-4">{formData.academicSession}</h4>
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{formData.examTitle}</h3>
-                            <div className="flex justify-between items-center text-sm font-bold text-gray-800 dark:text-gray-200 mt-4 px-4 py-2 border-y border-gray-300 dark:border-gray-600">
+                            <div className="flex justify-between items-center text-sm font-bold text-gray-800 dark:text-gray-200 mt-4 px-4 py-2 border-t border-gray-300 dark:border-gray-600">
                                 <span>Course: {formData.courseCode || formData.subject}</span>
                                 <span>Time Allowed: {formData.duration} Mins</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm font-bold text-gray-800 dark:text-gray-200 px-4 py-2 border-b border-gray-300 dark:border-gray-600">
+                                <span>{formData.topic ? `Topic: ${formData.topic}` : ''}</span>
                                 <span>Maximum Marks: {totalMarks}</span>
                             </div>
                         </div>
@@ -536,7 +551,8 @@ const GenerateExam = () => {
                             {formData.logo && <img src={formData.logo} alt="Logo" className="w-20 h-20 object-contain mx-auto mb-4" />}
                             <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2">{formData.institutionName}</h4>
                             <h2 className="text-2xl font-black text-gray-900 leading-tight mb-2">{formData.examTitle}</h2>
-                            {formData.courseCode && <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full mb-6">{formData.courseCode}</span>}
+                            {formData.courseCode && <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full mb-2">{formData.courseCode}</span>}
+                            {formData.topic && <div className="text-sm font-bold text-gray-800 mb-4">Topic: {formData.topic}</div>}
                             <div className="flex justify-between items-center border-b-2 border-gray-900 pb-4 text-xs font-bold text-gray-900 uppercase tracking-wider">
                                 <span>Time: {formData.duration} Minutes</span>
                                 <span>Total Marks: {totalMarks}</span>
@@ -555,8 +571,9 @@ const GenerateExam = () => {
                             <div className="grid grid-cols-2 gap-y-2 text-sm font-bold text-gray-800">
                                 <div><span className="text-gray-500">SUBJECT:</span> {formData.subject}</div>
                                 <div className="text-right"><span className="text-gray-500">SESSION:</span> {formData.academicSession}</div>
-                                <div><span className="text-gray-500">TIME:</span> {formData.duration} MINUTES</div>
+                                <div><span className="text-gray-500">TOPIC:</span> {formData.topic || 'N/A'}</div>
                                 <div className="text-right"><span className="text-gray-500">MARKS:</span> {totalMarks}</div>
+                                <div><span className="text-gray-500">TIME:</span> {formData.duration} MINUTES</div>
                             </div>
                         </div>
                     )}

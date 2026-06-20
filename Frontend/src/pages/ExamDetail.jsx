@@ -94,8 +94,9 @@ const ExamDetail = () => {
       {/* Top Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-start gap-6 print:hidden">
           <div>
-              <div className="flex gap-2 mb-2">
+              <div className="flex flex-wrap gap-2 mb-2">
                   <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest">{exam.subject}</span>
+                  {exam.topic && <span className="bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest">{exam.topic}</span>}
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest flex items-center">• Generated {new Date(exam.generatedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
               </div>
               <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-3">{exam.examTitle}</h1>
