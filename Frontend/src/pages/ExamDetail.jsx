@@ -71,19 +71,30 @@ const ExamDetail = () => {
 
   if (!exam) return <div className="text-center py-20">Exam not found</div>;
 
+  const isSectioned = exam.blueprint && exam.blueprint.length > 0;
+  
   const groupedQuestions = {};
-  const counts = { MCQ: 0, 'Short Answer': 0, 'Long Answer': 0, 'True/False': 0 };
+  const counts = { MCQ: 0, 'Short Answer': 0, 'Long Answer': 0, 'True/False': 0, 'Coding': 0 };
   
   if (exam.questions) {
       exam.questions.forEach(q => {
           const type = q.type || 'MCQ';
           if (!groupedQuestions[type]) groupedQuestions[type] = [];
           groupedQuestions[type].push(q);
-          counts[type]++;
+          if (counts[type] !== undefined) counts[type]++;
       });
   }
 
-  const mcqMarks = counts['MCQ'] * (exam.marksDistribution?.['MCQ']?.marks || 1);
+  let mcqMarks = 0;
+  if (isSectioned) {
+      exam.blueprint.forEach(sec => {
+          if (sec.type === 'MCQ') {
+              mcqMarks += sec.questionCount * sec.marksPerQuestion;
+          }
+      });
+  } else {
+      mcqMarks = counts['MCQ'] * (exam.marksDistribution?.['MCQ']?.marks || 1);
+  }
   const subjectiveMarks = (exam.totalMarks || 0) - mcqMarks;
   const mcqPercentage = exam.totalMarks ? Math.round((mcqMarks / exam.totalMarks) * 100) : 0;
   const subPercentage = exam.totalMarks ? 100 - mcqPercentage : 0;
@@ -280,63 +291,125 @@ const ExamDetail = () => {
           )}
 
           <div className="space-y-10">
-            {Object.entries(groupedQuestions).map(([type, qList]) => {
-                const marksForType = exam.marksDistribution?.[type]?.marks || 1;
-                const sectionMap = {'MCQ': 'A: MULTIPLE CHOICE', 'Short Answer': 'B: SHORT ANALYSIS', 'Long Answer': 'C: LONG RESPONSE', 'True/False': 'D: TRUE/FALSE'};
+            {isSectioned ? (
+                exam.sectionedQuestions?.map((sectionGroup, sIdx) => {
+                    const secInfo = exam.blueprint.find(b => b.sectionName === sectionGroup.sectionName) || {};
+                    const marksForType = secInfo.marksPerQuestion || 1;
+                    const qList = sectionGroup.questions || [];
+                    const type = secInfo.type || 'MCQ';
 
-                return (
-                    <div key={type}>
-                        <div className="flex justify-between items-end border-b-2 border-gray-800 dark:border-gray-200 pb-2 mb-6">
-                            <h3 className="font-black text-gray-900 dark:text-white uppercase text-sm">
-                                SECTION {sectionMap[type]} <span className="font-bold">({qList.length * marksForType} MARKS)</span>
-                            </h3>
-                            <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 italic">Attempt all questions.</span>
-                        </div>
+                    return (
+                        <div key={sIdx}>
+                            <div className="flex justify-between items-end border-b-2 border-gray-800 dark:border-gray-200 pb-2 mb-6">
+                                <h3 className="font-black text-gray-900 dark:text-white uppercase text-sm">
+                                    SECTION {String.fromCharCode(65 + sIdx)}: {sectionGroup.sectionName} <span className="font-bold">({qList.length * marksForType} MARKS)</span>
+                                </h3>
+                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 italic">Attempt all questions.</span>
+                            </div>
 
-                        <div className="space-y-6">
-                            {qList.map((question, index) => (
-                                <div key={question._id || index} className="flex gap-4">
-                                    <span className="font-black text-gray-900 dark:text-white text-xs mt-0.5">Q{index + 1}.</span>
-                                    <div className="flex-1">
-                                        <p className="text-xs font-bold text-gray-900 dark:text-white mb-3 leading-relaxed">
-                                            {question.questionText}
-                                        </p>
-                                        
-                                        {(type === 'MCQ' || type === 'True/False') && previewMode === 'paper' && (
-                                            <div className="grid grid-cols-2 gap-y-2 gap-x-8 ml-2">
-                                                {(type === 'True/False' ? ['True', 'False'] : (question.options || [])).map((option, optIndex) => (
-                                                    <div key={optIndex} className="text-xs text-gray-700 dark:text-gray-300 font-medium flex gap-2">
-                                                        <span>{String.fromCharCode(65 + optIndex)})</span> {option}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {type === 'Long Answer' && previewMode === 'paper' && (
-                                            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 italic text-[10px] text-gray-400 font-medium">
-                                                [Space for answer...]
-                                            </div>
-                                        )}
-                                        {previewMode === 'answer' && (
-                                            <div className="mt-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg">
-                                                <div className="flex gap-2">
-                                                    <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-widest">Answer:</span>
-                                                    <span className="text-xs font-medium text-emerald-900 dark:text-emerald-300">{question.correctAnswer}</span>
+                            <div className="space-y-6">
+                                {qList.map((question, index) => (
+                                    <div key={question._id || index} className="flex gap-4">
+                                        <span className="font-black text-gray-900 dark:text-white text-xs mt-0.5">Q{index + 1}.</span>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-bold text-gray-900 dark:text-white mb-3 leading-relaxed">
+                                                {question.questionText}
+                                            </p>
+                                            
+                                            {(type === 'MCQ' || type === 'True/False') && previewMode === 'paper' && (
+                                                <div className="grid grid-cols-2 gap-y-2 gap-x-8 ml-2">
+                                                    {(type === 'True/False' ? ['True', 'False'] : (question.options || [])).map((option, optIndex) => (
+                                                        <div key={optIndex} className="text-xs text-gray-700 dark:text-gray-300 font-medium flex gap-2">
+                                                            <span>{String.fromCharCode(65 + optIndex)})</span> {option}
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                {question.explanation && (
-                                                    <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-500 leading-relaxed italic border-t border-emerald-200/50 dark:border-emerald-800/50 pt-2">
-                                                        {question.explanation}
+                                            )}
+                                            {(type === 'Long Answer' || type === 'Coding') && previewMode === 'paper' && (
+                                                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 italic text-[10px] text-gray-400 font-medium">
+                                                    [Space for answer...]
+                                                </div>
+                                            )}
+                                            {previewMode === 'answer' && (
+                                                <div className="mt-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg">
+                                                    <div className="flex gap-2">
+                                                        <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-widest">Answer:</span>
+                                                        <span className="text-xs font-medium text-emerald-900 dark:text-emerald-300">{question.correctAnswer}</span>
                                                     </div>
-                                                )}
-                                            </div>
-                                        )}
+                                                    {question.explanation && (
+                                                        <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-500 leading-relaxed italic border-t border-emerald-200/50 dark:border-emerald-800/50 pt-2">
+                                                            {question.explanation}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="font-bold text-gray-900 dark:text-white text-[10px]">[{marksForType}]</span>
                                     </div>
-                                    <span className="font-bold text-gray-900 dark:text-white text-[10px]">[{marksForType}]</span>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                );
-            })}
+                    );
+                })
+            ) : (
+                Object.entries(groupedQuestions).map(([type, qList]) => {
+                    const marksForType = exam.marksDistribution?.[type]?.marks || 1;
+                    const sectionMap = {'MCQ': 'A: MULTIPLE CHOICE', 'Short Answer': 'B: SHORT ANALYSIS', 'Long Answer': 'C: LONG RESPONSE', 'True/False': 'D: TRUE/FALSE'};
+
+                    return (
+                        <div key={type}>
+                            <div className="flex justify-between items-end border-b-2 border-gray-800 dark:border-gray-200 pb-2 mb-6">
+                                <h3 className="font-black text-gray-900 dark:text-white uppercase text-sm">
+                                    SECTION {sectionMap[type] || `A: ${type.toUpperCase()}`} <span className="font-bold">({qList.length * marksForType} MARKS)</span>
+                                </h3>
+                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 italic">Attempt all questions.</span>
+                            </div>
+
+                            <div className="space-y-6">
+                                {qList.map((question, index) => (
+                                    <div key={question._id || index} className="flex gap-4">
+                                        <span className="font-black text-gray-900 dark:text-white text-xs mt-0.5">Q{index + 1}.</span>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-bold text-gray-900 dark:text-white mb-3 leading-relaxed">
+                                                {question.questionText}
+                                            </p>
+                                            
+                                            {(type === 'MCQ' || type === 'True/False') && previewMode === 'paper' && (
+                                                <div className="grid grid-cols-2 gap-y-2 gap-x-8 ml-2">
+                                                    {(type === 'True/False' ? ['True', 'False'] : (question.options || [])).map((option, optIndex) => (
+                                                        <div key={optIndex} className="text-xs text-gray-700 dark:text-gray-300 font-medium flex gap-2">
+                                                            <span>{String.fromCharCode(65 + optIndex)})</span> {option}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {type === 'Long Answer' && previewMode === 'paper' && (
+                                                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 italic text-[10px] text-gray-400 font-medium">
+                                                    [Space for answer...]
+                                                </div>
+                                            )}
+                                            {previewMode === 'answer' && (
+                                                <div className="mt-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg">
+                                                    <div className="flex gap-2">
+                                                        <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-widest">Answer:</span>
+                                                        <span className="text-xs font-medium text-emerald-900 dark:text-emerald-300">{question.correctAnswer}</span>
+                                                    </div>
+                                                    {question.explanation && (
+                                                        <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-500 leading-relaxed italic border-t border-emerald-200/50 dark:border-emerald-800/50 pt-2">
+                                                            {question.explanation}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="font-bold text-gray-900 dark:text-white text-[10px]">[{marksForType}]</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })
+            )}
           </div>
 
 

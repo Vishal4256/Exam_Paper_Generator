@@ -61,14 +61,28 @@ const ExamSchema = new mongoose.Schema({
         default: ''
     },
     marksDistribution: {
-        type: mongoose.Schema.Types.Mixed, // Maps question type to count and marks
+        type: mongoose.Schema.Types.Mixed, // Legacy mapping
         default: {}
     },
-    // This array will hold the IDs of the randomized questions
+    blueprint: {
+        type: [mongoose.Schema.Types.Mixed], // Array of section objects
+        default: []
+    },
+    // Flat array of IDs for backward compatibility
     questions: [
         {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Question'
+        }
+    ],
+    // Grouped questions by section
+    sectionedQuestions: [
+        {
+            sectionName: String,
+            questions: [{
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Question'
+            }]
         }
     ],
     totalMarks: {

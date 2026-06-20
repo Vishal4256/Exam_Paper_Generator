@@ -16,7 +16,11 @@ const TemplateSchema = new mongoose.Schema({
     },
     marksDistribution: {
         type: mongoose.Schema.Types.Mixed,
-        required: true
+        default: {}
+    },
+    blueprint: {
+        type: [mongoose.Schema.Types.Mixed],
+        default: []
     },
     duration: {
         type: Number,

@@ -5,85 +5,128 @@ import axios from 'axios';
 
 const generateExam = async (req, res) => {
     try {
-        const { examTitle, description, collegeName, institutionType, department, academicSession, courseCode, logo, examHeaderStyle, subject, topic, examDate, duration, instructions, marksDistribution, difficulty } = req.body;
+        const { examTitle, description, collegeName, institutionType, department, academicSession, courseCode, logo, examHeaderStyle, subject, topic, examDate, duration, instructions, marksDistribution, blueprint, difficulty } = req.body;
 
         let selectedQuestions = [];
         let totalCalculatedMarks = 0;
+        let sectionedQuestions = [];
+        let calculatedDuration = duration;
 
-        // Iterate over marksDistribution to fetch questions for each type
-        if (!marksDistribution || Object.keys(marksDistribution).length === 0) {
-             return res.status(400).json({ msg: "Marks distribution is required" });
-        }
+        if (blueprint && blueprint.length > 0) {
+            calculatedDuration = 0;
+            for (const section of blueprint) {
+                const count = parseInt(section.questionCount);
+                const marks = parseInt(section.marksPerQuestion);
+                const sectionType = section.type || 'MCQ';
+                
+                calculatedDuration += parseInt(section.duration) || 0;
 
-        for (const [type, info] of Object.entries(marksDistribution)) {
-            const count = parseInt(info.count);
-            const marks = parseInt(info.marks);
-
-            if (count > 0) {
-                let query = { user: req.user.id, subject: subject, type: type, status: 'active' };
-                if (difficulty && difficulty !== 'All') {
-                    query.difficulty = difficulty;
-                }
-
-                let questions = await Question.find(query);
-                if (questions.length < count) {
-                    return res.status(400).json({ msg: `Not enough ${type} questions. You have ${questions.length} but need ${count}` });
-                }
-
-                // Difficulty Balancing (30% Easy, 50% Medium, 20% Hard)
-                let easyQs = questions.filter(q => q.difficulty === 'Easy');
-                let mediumQs = questions.filter(q => q.difficulty === 'Medium');
-                let hardQs = questions.filter(q => q.difficulty === 'Hard');
-
-                // If no difficulty field was set on questions, they might not match the filter
-                let uncategorizedQs = questions.filter(q => !['Easy', 'Medium', 'Hard'].includes(q.difficulty));
-                mediumQs.push(...uncategorizedQs); // Treat uncategorized as medium for balancing
-
-                const fisherYatesShuffle = (arr) => {
-                    for (let i = arr.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [arr[i], arr[j]] = [arr[j], arr[i]];
+                if (count > 0) {
+                    let query = { user: req.user.id, subject: subject, type: sectionType, status: 'active' };
+                    if (section.difficulty && section.difficulty !== 'Mixed' && section.difficulty !== 'All') {
+                        query.difficulty = section.difficulty;
                     }
-                };
-
-                fisherYatesShuffle(easyQs);
-                fisherYatesShuffle(mediumQs);
-                fisherYatesShuffle(hardQs);
-
-                let targetEasy = Math.round(count * 0.3);
-                let targetHard = Math.round(count * 0.2);
-                let targetMedium = count - targetEasy - targetHard;
-
-                let pickedForType = [];
-
-                const pick = (source, num) => {
-                    const picked = source.splice(0, num);
-                    pickedForType.push(...picked);
-                    return num - picked.length; // return deficit
-                };
-
-                let easyDeficit = pick(easyQs, targetEasy);
-                let mediumDeficit = pick(mediumQs, targetMedium);
-                let hardDeficit = pick(hardQs, targetHard);
-
-                let totalDeficit = easyDeficit + mediumDeficit + hardDeficit;
-
-                // Fallback: fill deficit from any remaining questions
-                if (totalDeficit > 0) {
-                    let pools = [mediumQs, easyQs, hardQs];
-                    for (let pool of pools) {
-                        if (totalDeficit === 0) break;
-                        totalDeficit = pick(pool, totalDeficit);
+                    if (section.topics && section.topics.length > 0) {
+                        let topicsArray = Array.isArray(section.topics) ? section.topics : section.topics.split(',').map(t => t.trim()).filter(Boolean);
+                        if (topicsArray.length > 0) {
+                             query.topic = { $in: topicsArray.map(t => new RegExp(`^${t}$`, 'i')) };
+                        }
                     }
+
+                    let questions = await Question.find(query);
+                    if (questions.length < count) {
+                        return res.status(400).json({ msg: `Not enough questions for section "${section.sectionName}". Found ${questions.length}, needed ${count}.` });
+                    }
+
+                    // Shuffle
+                    const fisherYatesShuffle = (arr) => {
+                        for (let i = arr.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [arr[i], arr[j]] = [arr[j], arr[i]];
+                        }
+                    };
+                    fisherYatesShuffle(questions);
+                    
+                    const picked = questions.slice(0, count);
+                    const pickedIds = picked.map(q => q._id);
+                    selectedQuestions.push(...pickedIds);
+                    sectionedQuestions.push({
+                        sectionName: section.sectionName,
+                        questions: pickedIds
+                    });
+                    totalCalculatedMarks += (count * marks);
                 }
-
-                // Final shuffle to mix difficulties
-                fisherYatesShuffle(pickedForType);
-
-                const pickedIds = pickedForType.map(q => q._id);
-                selectedQuestions.push(...pickedIds);
-                totalCalculatedMarks += (count * marks);
             }
+            if (calculatedDuration === 0) calculatedDuration = duration || 180;
+        } else if (marksDistribution && Object.keys(marksDistribution).length > 0) {
+            calculatedDuration = duration;
+            for (const [type, info] of Object.entries(marksDistribution)) {
+                const count = parseInt(info.count);
+                const marks = parseInt(info.marks);
+
+                if (count > 0) {
+                    let query = { user: req.user.id, subject: subject, type: type, status: 'active' };
+                    if (difficulty && difficulty !== 'All') {
+                        query.difficulty = difficulty;
+                    }
+
+                    let questions = await Question.find(query);
+                    if (questions.length < count) {
+                        return res.status(400).json({ msg: `Not enough ${type} questions. You have ${questions.length} but need ${count}` });
+                    }
+
+                    let easyQs = questions.filter(q => q.difficulty === 'Easy');
+                    let mediumQs = questions.filter(q => q.difficulty === 'Medium');
+                    let hardQs = questions.filter(q => q.difficulty === 'Hard');
+                    let uncategorizedQs = questions.filter(q => !['Easy', 'Medium', 'Hard'].includes(q.difficulty));
+                    mediumQs.push(...uncategorizedQs);
+
+                    const fisherYatesShuffle = (arr) => {
+                        for (let i = arr.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [arr[i], arr[j]] = [arr[j], arr[i]];
+                        }
+                    };
+
+                    fisherYatesShuffle(easyQs);
+                    fisherYatesShuffle(mediumQs);
+                    fisherYatesShuffle(hardQs);
+
+                    let targetEasy = Math.round(count * 0.3);
+                    let targetHard = Math.round(count * 0.2);
+                    let targetMedium = count - targetEasy - targetHard;
+
+                    let pickedForType = [];
+
+                    const pick = (source, num) => {
+                        const picked = source.splice(0, num);
+                        pickedForType.push(...picked);
+                        return num - picked.length;
+                    };
+
+                    let easyDeficit = pick(easyQs, targetEasy);
+                    let mediumDeficit = pick(mediumQs, targetMedium);
+                    let hardDeficit = pick(hardQs, targetHard);
+
+                    let totalDeficit = easyDeficit + mediumDeficit + hardDeficit;
+
+                    if (totalDeficit > 0) {
+                        let pools = [mediumQs, easyQs, hardQs];
+                        for (let pool of pools) {
+                            if (totalDeficit === 0) break;
+                            totalDeficit = pick(pool, totalDeficit);
+                        }
+                    }
+
+                    fisherYatesShuffle(pickedForType);
+
+                    const pickedIds = pickedForType.map(q => q._id);
+                    selectedQuestions.push(...pickedIds);
+                    totalCalculatedMarks += (count * marks);
+                }
+            }
+        } else {
+            return res.status(400).json({ msg: "A blueprint or marks distribution is required" });
         }
 
         if (selectedQuestions.length === 0) {
@@ -106,9 +149,11 @@ const generateExam = async (req, res) => {
             topic,
             instructions,
             marksDistribution,
+            blueprint,
             examDate,
-            duration,
+            duration: calculatedDuration,
             questions: selectedQuestions,
+            sectionedQuestions,
             totalMarks: totalCalculatedMarks
         });
 
@@ -124,7 +169,7 @@ const generateExam = async (req, res) => {
         );
 
         // Populate question details before sending to frontend
-        const fullExam = await Exam.findById(exam._id).populate('questions');
+        const fullExam = await Exam.findById(exam._id).populate('questions').populate('sectionedQuestions.questions');
         res.json(fullExam);
 
     } catch (err) {
@@ -137,6 +182,7 @@ const getExams = async (req, res) => {
     try {
         const exams = await Exam.find({ user: req.user.id })
             .populate('questions')
+            .populate('sectionedQuestions.questions')
             .sort({ generatedAt: -1 });
         res.json(exams);
     } catch (err) {
@@ -150,7 +196,7 @@ const getExam = async (req, res) => {
         const exam = await Exam.findOne({ 
             _id: req.params.id, 
             user: req.user.id 
-        }).populate('questions');
+        }).populate('questions').populate('sectionedQuestions.questions');
         
         if (!exam) {
             return res.status(404).json({ msg: "Exam not found" });
@@ -243,8 +289,77 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
     }
     
     doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1.5);
+
+    // NEW BLOCK: Print Blueprint Table if it exists
+    if (exam.blueprint && exam.blueprint.length > 0 && !isAnswerKey) {
+        doc.fontSize(12).font('Helvetica-Bold').text('EXAM TEMPLATE & SECTION BREAKDOWN', { align: 'center' }).moveDown(0.5);
+        doc.font('Helvetica-Bold').fontSize(10);
+        const startY = doc.y;
+        doc.text('Section Name', 50, startY);
+        doc.text('Type', 170, startY);
+        doc.text('Questions', 230, startY);
+        doc.text('Marks', 290, startY);
+        doc.text('Time', 340, startY);
+        doc.text('Topics', 390, startY);
+        doc.text('Difficulty', 490, startY);
+        doc.moveTo(50, doc.y + 5).lineTo(550, doc.y + 5).stroke().moveDown(1);
+        doc.font('Helvetica').fontSize(9);
+        
+        exam.blueprint.forEach(sec => {
+            const y = doc.y;
+            doc.text(sec.sectionName, 50, y, { width: 110 });
+            doc.text(sec.type || 'MCQ', 170, y);
+            doc.text(sec.questionCount ? sec.questionCount.toString() : '0', 230, y);
+            doc.text(sec.totalMarks ? sec.totalMarks.toString() : '0', 290, y);
+            doc.text(sec.duration ? `${sec.duration}m` : '-', 340, y);
+            const topicsText = Array.isArray(sec.topics) ? sec.topics.join(', ') : (sec.topics || '-');
+            doc.text(topicsText, 390, y, { width: 90 });
+            doc.text(sec.difficulty || 'Mixed', 490, y);
+            doc.moveDown(0.5);
+        });
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1.5);
+    }
     
-    // Questions grouped by type (or just listed, depending on how marksDistribution is stored)
+    let qNumber = 1;
+
+    // Check if new blueprint architecture
+    if (exam.sectionedQuestions && exam.sectionedQuestions.length > 0) {
+        for (const section of exam.sectionedQuestions) {
+            if (!section.questions || section.questions.length === 0) continue;
+            
+            const bp = exam.blueprint ? exam.blueprint.find(b => b.sectionName === section.sectionName) : null;
+            const marksForType = bp ? bp.marksPerQuestion : 1;
+            const type = bp ? (bp.type || 'MCQ') : 'MCQ';
+            
+            doc.fontSize(12).font('Helvetica-Bold').text(`Section: ${section.sectionName} (${section.questions.length} Questions, ${marksForType} mark${marksForType > 1 ? 's' : ''} each)`, { underline: true }).moveDown(0.5);
+            doc.font('Helvetica');
+            
+            section.questions.forEach(q => {
+                doc.fontSize(11).text(`Q${qNumber}. ${q.questionText}`);
+                if (!isAnswerKey) {
+                    if (type === 'MCQ' && q.options && q.options.length > 0) {
+                        const letters = ['A', 'B', 'C', 'D', 'E'];
+                        q.options.forEach((opt, idx) => {
+                            doc.text(`   ${letters[idx] || '-'}. ${opt}`);
+                        });
+                    } else if (type === 'True/False') {
+                        doc.text(`   A. True`);
+                        doc.text(`   B. False`);
+                    } else if (type === 'Short Answer') {
+                        doc.moveDown(2);
+                    } else if (type === 'Long Answer' || type === 'Coding') {
+                        doc.moveDown(5);
+                    }
+                } else {
+                    doc.fillColor('green').text(`   Answer: ${q.correctAnswer || 'N/A'}`).fillColor('black');
+                }
+                doc.moveDown(0.5);
+                qNumber++;
+            });
+            doc.moveDown();
+        }
+    } else {
+        // Questions grouped by type (legacy)
     // We'll iterate through all questions and list them
     const questionsByType = {
         'MCQ': [],
@@ -300,7 +415,7 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
 // Download exam PDF
 const downloadExamPDF = async (req, res) => {
     try {
-        const exam = await Exam.findOne({ _id: req.params.id, user: req.user.id }).populate('questions');
+        const exam = await Exam.findOne({ _id: req.params.id, user: req.user.id }).populate('questions').populate('sectionedQuestions.questions');
         if (!exam) return res.status(404).json({ msg: "Exam not found" });
 
         const doc = new PDFDocument({ margin: 50 });
@@ -322,7 +437,7 @@ const downloadExamPDF = async (req, res) => {
 // Download answer key PDF
 const downloadAnswerKeyPDF = async (req, res) => {
     try {
-        const exam = await Exam.findOne({ _id: req.params.id, user: req.user.id }).populate('questions');
+        const exam = await Exam.findOne({ _id: req.params.id, user: req.user.id }).populate('questions').populate('sectionedQuestions.questions');
         if (!exam) return res.status(404).json({ msg: "Exam not found" });
 
         const doc = new PDFDocument({ margin: 50 });

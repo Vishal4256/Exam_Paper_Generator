@@ -2,8 +2,8 @@ import Template from '../models/Template.model.js';
 
 const saveTemplate = async (req, res) => {
     try {
-        const { name, subject, marksDistribution, duration } = req.body;
-        if (!name || !subject || !marksDistribution) {
+        const { name, subject, marksDistribution, blueprint, duration } = req.body;
+        if (!name || !subject || (!marksDistribution && !blueprint)) {
             return res.status(400).json({ msg: "Please provide all required fields" });
         }
 
@@ -12,6 +12,7 @@ const saveTemplate = async (req, res) => {
             name,
             subject,
             marksDistribution,
+            blueprint,
             duration
         });
 

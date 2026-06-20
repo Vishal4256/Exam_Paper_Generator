@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../utils/axiosConfig';
-import { Sparkles, BookOpen, Zap, Target, Save, RotateCcw, Building2 } from 'lucide-react';
+import { Sparkles, BookOpen, Target, Save, RotateCcw, Building2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 
 const GenerateExam = () => {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
-    examTitle: 'Advanced Quantum Mechanics',
+    examTitle: 'Advanced Assessment',
     description: '',
     institutionType: 'College',
     institutionName: 'ACADEMIC INTELLIGENCE INSTITUTE',
@@ -22,18 +22,25 @@ const GenerateExam = () => {
     logo: '',
     instructions: '',
     examHeaderStyle: 'Style 3',
-    marksDistribution: {
-      'MCQ': { count: 2, marks: 2 },
-      'Short Answer': { count: 5, marks: 5 },
-      'Long Answer': { count: 3, marks: 10 },
-      'True/False': { count: 0, marks: 1 }
-    }
+    blueprint: []
+  });
+
+  const [newSection, setNewSection] = useState({
+      sectionName: '',
+      questionCount: '',
+      marksPerQuestion: '',
+      duration: '',
+      topics: '',
+      difficulty: 'Mixed',
+      type: 'MCQ'
   });
   
   const [subjects, setSubjects] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
-  const [availableCounts, setAvailableCounts] = useState({'MCQ': 0, 'Short Answer': 0, 'Long Answer': 0, 'True/False': 0});
-  const [previewQuestions, setPreviewQuestions] = useState([]);
+  const [previewQuestions, setPreviewQuestions] = useState({});
+  const [deficits, setDeficits] = useState({});
+  const [hasDeficit, setHasDeficit] = useState(false);
+
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -77,14 +84,13 @@ const GenerateExam = () => {
                   topic: exam.topic || '',
                   examDate: exam.examDate ? exam.examDate.split('T')[0] : '',
                   duration: exam.duration,
-                  marksDistribution: exam.marksDistribution
+                  blueprint: exam.blueprint || []
               });
               toast.info("Configuration loaded for editing");
           } catch (e) {
               console.error("Error loading exam for edit", e);
           }
       } else {
-          // Load Defaults
           try {
               const instRes = await api.get('/settings/institution');
               if (instRes.data) {
@@ -117,52 +123,62 @@ const GenerateExam = () => {
      const normalizedSubject = formData.subject.trim().toLowerCase();
      const subjectQs = allQuestions.filter(q => q.subject.toLowerCase() === normalizedSubject && q.status !== 'draft');
      
-     const counts = { 'MCQ': 0, 'Short Answer': 0, 'Long Answer': 0, 'True/False': 0 };
-     subjectQs.forEach(q => {
-         if (counts[q.type] !== undefined) counts[q.type]++;
-     });
-     setAvailableCounts(counts);
+     let groupedPreview = {};
+     let curDeficits = {};
+     let hasDef = false;
 
-     // Generate a live preview
-     let preview = [];
-     for (const [type, info] of Object.entries(formData.marksDistribution)) {
-         if (info.count > 0) {
-             const typeQs = subjectQs.filter(q => q.type === type);
-             const shuffled = [...typeQs].sort(() => 0.5 - Math.random());
-             preview.push(...shuffled.slice(0, info.count));
+     formData.blueprint.forEach(sec => {
+         let filtered = subjectQs.filter(q => q.type === sec.type);
+         if (sec.difficulty && sec.difficulty !== 'Mixed' && sec.difficulty !== 'All') {
+             filtered = filtered.filter(q => q.difficulty === sec.difficulty);
          }
-     }
-     
-     // Group preview by type for display
-     const groupedPreview = {
-        'MCQ': preview.filter(q => q.type === 'MCQ'),
-        'Short Answer': preview.filter(q => q.type === 'Short Answer'),
-        'Long Answer': preview.filter(q => q.type === 'Long Answer'),
-        'True/False': preview.filter(q => q.type === 'True/False')
-     };
-     setPreviewQuestions(groupedPreview);
-  }, [formData.subject, formData.marksDistribution, allQuestions]);
+         if (sec.topics) {
+             const topicsArray = sec.topics.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+             if (topicsArray.length > 0) {
+                 filtered = filtered.filter(q => q.topic && topicsArray.includes(q.topic.toLowerCase()));
+             }
+         }
+         
+         const avail = filtered.length;
+         const req = Number(sec.questionCount) || 0;
+         
+         if (avail < req) {
+             hasDef = true;
+             curDeficits[sec.sectionName] = { req, avail, missing: req - avail, ...sec };
+         }
 
-  const handleDistributionChange = (type, field, value) => {
-    setFormData({
-      ...formData,
-      marksDistribution: {
-        ...formData.marksDistribution,
-        [type]: {
-          ...formData.marksDistribution[type],
-          [field]: parseInt(value) || 0
-        }
+         const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+         groupedPreview[sec.sectionName] = shuffled.slice(0, req);
+     });
+
+     setDeficits(curDeficits);
+     setHasDeficit(hasDef);
+     setPreviewQuestions(groupedPreview);
+  }, [formData.subject, formData.blueprint, allQuestions]);
+
+  const handleAddSection = () => {
+      if (!newSection.sectionName || !newSection.questionCount || !newSection.marksPerQuestion) {
+          toast.error("Please fill Name, Question Count, and Marks"); return;
       }
-    });
+      setFormData({ ...formData, blueprint: [...formData.blueprint, {...newSection}] });
+      setNewSection({ sectionName: '', questionCount: '', marksPerQuestion: '', duration: '', topics: '', difficulty: 'Mixed', type: 'MCQ' });
+  };
+
+  const handleDeleteSection = (index) => {
+      const updated = formData.blueprint.filter((_, i) => i !== index);
+      setFormData({ ...formData, blueprint: updated });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.blueprint.length === 0) {
+        toast.error('Please add at least one section to the blueprint'); return;
+    }
     setLoading(true);
     try {
       const payload = {
         ...formData,
-        collegeName: formData.institutionName // mapping for backward compatibility
+        collegeName: formData.institutionName
       };
       const res = await api.post('/exams/generate', payload);
       toast.success('Exam generated successfully!');
@@ -199,7 +215,7 @@ const GenerateExam = () => {
           const reqData = {
               name,
               subject: formData.subject,
-              marksDistribution: formData.marksDistribution,
+              blueprint: formData.blueprint,
               duration: formData.duration
           };
           await api.post('/templates', reqData);
@@ -212,28 +228,10 @@ const GenerateExam = () => {
 
   const handleReset = () => {
       if (window.confirm("Are you sure you want to reset all settings?")) {
-          setFormData({
-            examTitle: 'Advanced Quantum Mechanics',
-            description: '',
-            institutionName: 'ACADEMIC INTELLIGENCE INSTITUTE',
-            institutionType: 'College',
-            department: '',
-            academicSession: '',
-            courseCode: '',
-            logo: '',
-            instructions: '',
-            examHeaderStyle: 'Style 3',
-            subject: subjects[0] || '',
-            topic: '',
-            examDate: '',
-            duration: 180,
-            marksDistribution: {
-              'MCQ': { count: 2, marks: 2 },
-              'Short Answer': { count: 5, marks: 5 },
-              'Long Answer': { count: 3, marks: 10 },
-              'True/False': { count: 0, marks: 1 }
-            }
-          });
+          setFormData(prev => ({
+              ...prev,
+              blueprint: []
+          }));
       }
   };
 
@@ -244,13 +242,13 @@ const GenerateExam = () => {
       
       try {
           let newlyGenerated = [];
-          for (const [type, count] of Object.entries(deficits)) {
+          for (const [secName, defInfo] of Object.entries(deficits)) {
               const reqData = {
                   subject: formData.subject,
-                  topic: formData.subject + ' General Topics',
-                  difficulty: 'Medium',
-                  type: type,
-                  count: count
+                  topic: defInfo.topics || (formData.subject + ' General Topics'),
+                  difficulty: defInfo.difficulty === 'Mixed' ? 'Medium' : defInfo.difficulty,
+                  type: defInfo.type,
+                  count: defInfo.missing
               };
               const res = await api.post('/ai/generate', reqData);
               const generated = res.data.questions || res.data;
@@ -261,7 +259,7 @@ const GenerateExam = () => {
               const questionsToSave = newlyGenerated.map(q => ({...q, source: 'ai'}));
               await api.post('/questions/bulk', { questions: questionsToSave });
               toast.update(toastId, { render: `Successfully generated and saved ${newlyGenerated.length} missing questions!`, type: 'success', isLoading: false, autoClose: 3000 });
-              fetchData(); // Refresh all questions
+              fetchData();
           }
       } catch (err) {
           console.error(err);
@@ -271,20 +269,12 @@ const GenerateExam = () => {
       }
   };
 
-  let hasDeficit = false;
-  let deficits = {};
-  for (const [type, info] of Object.entries(formData.marksDistribution)) {
-      if (info.count > availableCounts[type]) {
-          hasDeficit = true;
-          deficits[type] = info.count - availableCounts[type];
-      }
-  }
-
-  const totalMarks = Object.values(formData.marksDistribution).reduce((sum, item) => sum + (item.count * item.marks), 0);
+  const totalMarks = formData.blueprint.reduce((sum, sec) => sum + (Number(sec.questionCount) * Number(sec.marksPerQuestion)), 0);
+  const totalQuestions = formData.blueprint.reduce((sum, sec) => sum + Number(sec.questionCount), 0);
+  const totalCalculatedDuration = formData.blueprint.reduce((sum, sec) => sum + (Number(sec.duration) || 0), 0);
 
   return (
     <div className="max-w-[1400px] mx-auto pb-8">
-        
         <div className="mb-8">
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">Generate Exam</h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm">Configure your automated academic assessment with precision.</p>
@@ -369,12 +359,12 @@ const GenerateExam = () => {
                                         setFormData({
                                             ...formData,
                                             subject: tmpl.subject,
-                                            marksDistribution: tmpl.marksDistribution,
+                                            blueprint: tmpl.blueprint || [],
                                             duration: tmpl.duration || 180
                                         });
                                         toast.success("Template loaded!");
                                     }
-                                    e.target.value = ""; // Reset select
+                                    e.target.value = "";
                                 }} className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 outline-none">
                                     <option value="">Load Template...</option>
                                     {templates.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
@@ -385,14 +375,8 @@ const GenerateExam = () => {
                             <div className="relative">
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Subject</label>
                                 <input 
-                                    type="text" 
-                                    required 
-                                    list="subject-suggestions"
-                                    placeholder="Enter Subject Name"
-                                    minLength="2"
-                                    maxLength="100"
-                                    value={formData.subject} 
-                                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })} 
+                                    type="text" required list="subject-suggestions" placeholder="Enter Subject Name"
+                                    value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} 
                                     className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" 
                                 />
                                 <datalist id="subject-suggestions">
@@ -400,8 +384,8 @@ const GenerateExam = () => {
                                 </datalist>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Topic</label>
-                                <input type="text" required placeholder="e.g. Normalization, Quantum Mechanics" value={formData.topic} onChange={(e) => setFormData({ ...formData, topic: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Global Topic (Optional)</label>
+                                <input type="text" placeholder="e.g. Normalization" value={formData.topic} onChange={(e) => setFormData({ ...formData, topic: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Exam Title</label>
@@ -412,59 +396,116 @@ const GenerateExam = () => {
                                 <input type="date" value={formData.examDate} onChange={(e) => setFormData({ ...formData, examDate: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Duration (Mins)</label>
-                                <input type="number" required value={formData.duration} onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Total Duration (Mins)</label>
+                                <input type="number" value={totalCalculatedDuration || formData.duration} onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm font-bold text-gray-700" disabled={totalCalculatedDuration > 0} />
                             </div>
                         </div>
                     </div>
-                {/* Question Type Distribution */}
+
+                {/* Exam Template & Section Breakdown */}
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
                     <div className="flex justify-between items-center mb-6">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg"><Target className="w-5 h-5" /></div>
-                            <h3 className="font-bold text-gray-900 dark:text-white">Question Type Distribution</h3>
+                            <h3 className="font-bold text-gray-900 dark:text-white">Exam Template & Section Breakdown</h3>
                         </div>
-                        <div className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
-                            <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider mr-2">Total Marks:</span>
-                            <span className="text-sm font-black text-indigo-700">{totalMarks}</span>
+                        <div className="flex gap-2">
+                            <div className="bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 text-xs">
+                                <span className="font-bold text-gray-500 mr-1">Qs:</span><span className="font-black text-gray-800">{totalQuestions}</span>
+                            </div>
+                            <div className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 text-xs">
+                                <span className="font-bold text-indigo-500 mr-1">Marks:</span><span className="font-black text-indigo-700">{totalMarks}</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {['MCQ', 'Short Answer', 'Long Answer', 'True/False'].map((type) => {
-                            const mapType = type === 'Long Answer' ? 'Long/Theory' : type + (type === 'MCQ' ? 's' : '');
-                            return (
-                            <div key={type} className="border border-gray-100 dark:border-gray-700 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-800/50 hover:border-indigo-200 transition-colors">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <div className="w-3 h-3 rounded-full border-2 border-indigo-600 flex items-center justify-center"><div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div></div>
-                                    <span className="text-xs font-bold text-gray-900 dark:text-gray-100 line-clamp-1">{mapType}</span>
-                                </div>
-                                <div className="flex gap-3">
-                                    <div className="flex-1">
-                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 text-center">Count</label>
-                                        <input type="number" min="0" value={formData.marksDistribution[type].count} onChange={(e) => handleDistributionChange(type, 'count', e.target.value)} className="w-full bg-white border border-gray-200 rounded-lg py-2 text-center text-sm font-bold text-gray-700 outline-none focus:border-indigo-500" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 text-center">Each</label>
-                                        <input type="number" min="1" value={formData.marksDistribution[type].marks} onChange={(e) => handleDistributionChange(type, 'marks', e.target.value)} className="w-full bg-white border border-gray-200 rounded-lg py-2 text-center text-sm font-bold text-gray-700 outline-none focus:border-indigo-500" />
-                                    </div>
-                                </div>
-                                <div className="mt-3 text-center">
-                                    <span className={`text-[10px] font-bold ${formData.marksDistribution[type].count > availableCounts[type] ? 'text-red-500' : 'text-emerald-500'}`}>
-                                        Avail: {availableCounts[type]}
-                                    </span>
-                                </div>
-                            </div>
-                        )})}
+                    <div className="overflow-x-auto mb-6">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-500">
+                                <tr>
+                                    <th className="px-3 py-2 rounded-tl-lg">Section Name</th>
+                                    <th className="px-3 py-2">Qs</th>
+                                    <th className="px-3 py-2">Marks/Q</th>
+                                    <th className="px-3 py-2">Time(m)</th>
+                                    <th className="px-3 py-2">Type</th>
+                                    <th className="px-3 py-2">Difficulty</th>
+                                    <th className="px-3 py-2">Topics</th>
+                                    <th className="px-3 py-2 rounded-tr-lg">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-xs font-semibold text-gray-700">
+                                {formData.blueprint.map((sec, idx) => (
+                                    <tr key={idx} className="border-b border-gray-100">
+                                        <td className="px-3 py-3">{sec.sectionName}</td>
+                                        <td className="px-3 py-3">{sec.questionCount}</td>
+                                        <td className="px-3 py-3">{sec.marksPerQuestion}</td>
+                                        <td className="px-3 py-3">{sec.duration || '-'}</td>
+                                        <td className="px-3 py-3">{sec.type}</td>
+                                        <td className="px-3 py-3">{sec.difficulty}</td>
+                                        <td className="px-3 py-3 max-w-[150px] truncate" title={sec.topics}>{sec.topics || 'All'}</td>
+                                        <td className="px-3 py-3">
+                                            <button type="button" onClick={() => handleDeleteSection(idx)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {formData.blueprint.length === 0 && <div className="text-center py-6 text-sm text-gray-400 italic">No sections added yet.</div>}
+                    </div>
+
+                    {/* Add Section Form */}
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="col-span-2">
+                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Section Name *</label>
+                            <input type="text" placeholder="e.g. Reasoning" value={newSection.sectionName} onChange={(e)=>setNewSection({...newSection, sectionName: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Questions *</label>
+                            <input type="number" min="1" value={newSection.questionCount} onChange={(e)=>setNewSection({...newSection, questionCount: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Marks/Q *</label>
+                            <input type="number" min="1" value={newSection.marksPerQuestion} onChange={(e)=>setNewSection({...newSection, marksPerQuestion: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Q-Type</label>
+                            <select value={newSection.type} onChange={(e)=>setNewSection({...newSection, type: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500">
+                                <option value="MCQ">MCQ</option>
+                                <option value="Short Answer">Short Answer</option>
+                                <option value="Long Answer">Long Answer</option>
+                                <option value="True/False">True/False</option>
+                                <option value="Coding">Coding</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Difficulty</label>
+                            <select value={newSection.difficulty} onChange={(e)=>setNewSection({...newSection, difficulty: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500">
+                                <option value="Mixed">Mixed</option>
+                                <option value="Easy">Easy</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Hard">Hard</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Time (mins)</label>
+                            <input type="number" value={newSection.duration} onChange={(e)=>setNewSection({...newSection, duration: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Topics (comma sep)</label>
+                            <input type="text" placeholder="Arrays, Maps..." value={newSection.topics} onChange={(e)=>setNewSection({...newSection, topics: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                        </div>
+                        <div className="col-span-2 md:col-span-4 mt-2">
+                            <button type="button" onClick={handleAddSection} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-2"><Plus className="w-4 h-4"/> Add Section</button>
+                        </div>
                     </div>
                 </div>
 
                 {hasDeficit && (
                     <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
-                        <h4 className="text-sm font-bold text-red-800 mb-2">Not Enough Questions in Bank</h4>
+                        <h4 className="text-sm font-bold text-red-800 mb-2">Not Enough Questions in Bank for Sections</h4>
                         <ul className="text-xs text-red-600 space-y-1 mb-4">
-                            {Object.entries(deficits).map(([type, count]) => (
-                                <li key={type}>• {type}: You have {availableCounts[type]} but need {formData.marksDistribution[type].count} (Missing {count})</li>
+                            {Object.entries(deficits).map(([secName, info]) => (
+                                <li key={secName}>• {secName}: You have {info.avail} but need {info.req} (Missing {info.missing})</li>
                             ))}
                         </ul>
                         <div className="flex gap-3">
@@ -472,37 +513,30 @@ const GenerateExam = () => {
                                 <Sparkles className="w-3 h-3" />
                                 {aiGenerating ? 'Generating...' : 'Generate Missing Questions with AI'}
                             </button>
-                            <button onClick={() => {
-                                const fixed = {...formData.marksDistribution};
-                                Object.keys(deficits).forEach(t => fixed[t].count = availableCounts[t]);
-                                setFormData({...formData, marksDistribution: fixed});
-                            }} type="button" className="bg-white border border-red-200 text-red-600 text-xs font-bold px-4 py-2.5 rounded-lg hover:bg-red-50 transition-colors">
-                                Adjust Counts to Available
-                            </button>
                         </div>
                     </div>
                 )}
 
                 {/* Actions */}
                 <div className="flex items-center gap-4">
-                    <button onClick={handleReset} type="button" className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold py-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <button onClick={handleReset} type="button" className="flex-1 bg-white border border-gray-200 text-gray-600 font-bold py-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
                         <RotateCcw className="w-4 h-4" /> Reset Settings
                     </button>
-                    <button onClick={handleSaveTemplate} type="button" className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold py-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <button onClick={handleSaveTemplate} type="button" className="flex-1 bg-white border border-gray-200 text-gray-600 font-bold py-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
                         <Save className="w-4 h-4" /> Save Template
                     </button>
-                    <button type="submit" disabled={loading || hasDeficit} className="flex-[2] bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:bg-indigo-300 dark:disabled:bg-indigo-800 transition-colors shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2">
+                    <button type="submit" disabled={loading || hasDeficit || formData.blueprint.length === 0} className="flex-[2] bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors shadow-md flex items-center justify-center gap-2">
                         {loading ? 'Generating...' : <><Sparkles className="w-5 h-5" /> Generate Exam Paper</>}
                     </button>
                 </div>
             </div>
 
             {/* Right Column - Paper Preview */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-xl overflow-hidden relative flex flex-col">
-                <div className="bg-gray-50/80 dark:bg-gray-700/50 px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden relative flex flex-col">
+                <div className="bg-gray-50/80 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center"><BookOpen className="w-3 h-3 text-indigo-600 dark:text-indigo-400" /></div>
-                        <span className="font-bold text-gray-900 dark:text-white text-sm">Paper Preview</span>
+                        <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center"><BookOpen className="w-3 h-3 text-indigo-600" /></div>
+                        <span className="font-bold text-gray-900 text-sm">Paper Preview</span>
                     </div>
                     <div className="flex gap-1.5">
                         <div className="w-2 h-2 rounded-full bg-gray-300"></div>
@@ -512,35 +546,35 @@ const GenerateExam = () => {
                 </div>
 
                 {/* Document Canvas */}
-                <div className="flex-1 p-8 md:p-12 overflow-y-auto custom-scrollbar bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+                <div className="flex-1 p-8 md:p-12 overflow-y-auto custom-scrollbar bg-white text-gray-900">
                     {formData.examHeaderStyle === 'Style 1' && (
-                        <div className="text-center mb-10 border-b-2 border-gray-900 dark:border-gray-100 pb-6 relative">
+                        <div className="text-center mb-10 border-b-2 border-gray-900 pb-6 relative">
                             {formData.logo && <img src={formData.logo} alt="Logo" className="absolute left-0 top-0 w-16 h-16 object-contain" />}
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">{formData.institutionName}</h2>
-                            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-1 uppercase">{formData.examTitle}</h3>
-                            <div className="flex justify-between items-center mt-6 text-sm font-bold text-gray-800 dark:text-gray-200">
+                            <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">{formData.institutionName}</h2>
+                            <h3 className="text-sm font-semibold text-gray-700 mt-1 uppercase">{formData.examTitle}</h3>
+                            <div className="flex justify-between items-center mt-6 text-sm font-bold text-gray-800">
                                 <span>Subject: {formData.subject}</span>
-                                <span>Time: {formData.duration} Mins</span>
+                                <span>Time: {totalCalculatedDuration || formData.duration} Mins</span>
                                 <span>Max Marks: {totalMarks}</span>
                             </div>
                             {formData.topic && (
-                                <div className="text-left mt-2 text-sm font-bold text-gray-800 dark:text-gray-200">
+                                <div className="text-left mt-2 text-sm font-bold text-gray-800">
                                     <span>Topic: {formData.topic}</span>
                                 </div>
                             )}
                         </div>
                     )}
                     {formData.examHeaderStyle === 'Style 2' && (
-                        <div className="text-center mb-10 border-b border-gray-400 dark:border-gray-500 pb-6">
-                            <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-1">{formData.institutionName}</h2>
-                            {formData.department && <h3 className="text-sm font-serif italic text-gray-600 dark:text-gray-400 mb-2">Department of {formData.department}</h3>}
-                            <h4 className="text-md font-bold uppercase tracking-widest text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 inline-block px-4 py-1 rounded-full mb-4">{formData.academicSession}</h4>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{formData.examTitle}</h3>
-                            <div className="flex justify-between items-center text-sm font-bold text-gray-800 dark:text-gray-200 mt-4 px-4 py-2 border-t border-gray-300 dark:border-gray-600">
+                        <div className="text-center mb-10 border-b border-gray-400 pb-6">
+                            <h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">{formData.institutionName}</h2>
+                            {formData.department && <h3 className="text-sm font-serif italic text-gray-600 mb-2">Department of {formData.department}</h3>}
+                            <h4 className="text-md font-bold uppercase tracking-widest text-gray-800 bg-gray-100 inline-block px-4 py-1 rounded-full mb-4">{formData.academicSession}</h4>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">{formData.examTitle}</h3>
+                            <div className="flex justify-between items-center text-sm font-bold text-gray-800 mt-4 px-4 py-2 border-t border-gray-300">
                                 <span>Course: {formData.courseCode || formData.subject}</span>
-                                <span>Time Allowed: {formData.duration} Mins</span>
+                                <span>Time Allowed: {totalCalculatedDuration || formData.duration} Mins</span>
                             </div>
-                            <div className="flex justify-between items-center text-sm font-bold text-gray-800 dark:text-gray-200 px-4 py-2 border-b border-gray-300 dark:border-gray-600">
+                            <div className="flex justify-between items-center text-sm font-bold text-gray-800 px-4 py-2 border-b border-gray-300">
                                 <span>{formData.topic ? `Topic: ${formData.topic}` : ''}</span>
                                 <span>Maximum Marks: {totalMarks}</span>
                             </div>
@@ -554,7 +588,7 @@ const GenerateExam = () => {
                             {formData.courseCode && <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full mb-2">{formData.courseCode}</span>}
                             {formData.topic && <div className="text-sm font-bold text-gray-800 mb-4">Topic: {formData.topic}</div>}
                             <div className="flex justify-between items-center border-b-2 border-gray-900 pb-4 text-xs font-bold text-gray-900 uppercase tracking-wider">
-                                <span>Time: {formData.duration} Minutes</span>
+                                <span>Time: {totalCalculatedDuration || formData.duration} Minutes</span>
                                 <span>Total Marks: {totalMarks}</span>
                             </div>
                         </div>
@@ -573,7 +607,7 @@ const GenerateExam = () => {
                                 <div className="text-right"><span className="text-gray-500">SESSION:</span> {formData.academicSession}</div>
                                 <div><span className="text-gray-500">TOPIC:</span> {formData.topic || 'N/A'}</div>
                                 <div className="text-right"><span className="text-gray-500">MARKS:</span> {totalMarks}</div>
-                                <div><span className="text-gray-500">TIME:</span> {formData.duration} MINUTES</div>
+                                <div><span className="text-gray-500">TIME:</span> {totalCalculatedDuration || formData.duration} MINUTES</div>
                             </div>
                         </div>
                     )}
@@ -584,99 +618,98 @@ const GenerateExam = () => {
                             <pre className="text-xs text-gray-700 font-sans whitespace-pre-wrap">{formData.instructions}</pre>
                         </div>
                     )}
+                    
+                    {formData.blueprint.length > 0 && (
+                        <div className="mb-8 p-4 border border-gray-900 text-xs font-bold text-gray-900">
+                            <div className="text-center underline mb-2">EXAM TEMPLATE & SECTION BREAKDOWN</div>
+                            <div className="flex justify-between border-b border-gray-300 pb-1 mb-1 text-[10px] text-gray-500 uppercase">
+                                <span className="w-1/4">Section</span>
+                                <span className="w-1/6">Type</span>
+                                <span className="w-1/6">Qs</span>
+                                <span className="w-1/6">Marks</span>
+                                <span className="w-1/4">Topics</span>
+                            </div>
+                            {formData.blueprint.map((sec, i) => (
+                                <div key={i} className="flex justify-between py-1">
+                                    <span className="w-1/4 truncate">{sec.sectionName}</span>
+                                    <span className="w-1/6">{sec.type}</span>
+                                    <span className="w-1/6">{sec.questionCount}</span>
+                                    <span className="w-1/6">{sec.marksPerQuestion * sec.questionCount}</span>
+                                    <span className="w-1/4 truncate text-gray-500 text-[10px] font-medium">{sec.topics || 'All'}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Real Questions based on live preview */}
                     <div className="space-y-8">
-                        {previewQuestions['MCQ']?.length > 0 && (
-                            <div>
-                                <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-4">Section A: Objective Type (MCQs)</h3>
-                                {previewQuestions['MCQ'].map((q, idx) => (
-                                    <div key={q._id} className="flex gap-3 mb-6">
-                                        <span className="font-bold text-gray-900">Q{idx + 1}.</span>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium text-gray-800 mb-4">{q.questionText}</p>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                {q.options?.map((opt, oIdx) => (
-                                                    <div key={oIdx} className="border border-gray-200 rounded-lg px-4 py-2.5 text-xs text-gray-600 font-medium bg-gray-50/50">
-                                                        ({String.fromCharCode(65 + oIdx)}) {opt}
+                        {formData.blueprint.map((sec, secIdx) => {
+                            const qs = previewQuestions[sec.sectionName] || [];
+                            if (qs.length === 0) return null;
+                            
+                            return (
+                                <div key={secIdx}>
+                                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-4 underline">
+                                        Section: {sec.sectionName} ({qs.length} Questions, {sec.marksPerQuestion} mark{sec.marksPerQuestion > 1 ? 's' : ''} each)
+                                    </h3>
+                                    
+                                    {qs.map((q, idx) => (
+                                        <div key={q._id} className="flex gap-3 mb-6">
+                                            <span className="font-bold text-gray-900">Q{idx + 1}.</span>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-gray-800 mb-4">{q.questionText}</p>
+                                                
+                                                {sec.type === 'MCQ' && (
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        {q.options?.map((opt, oIdx) => (
+                                                            <div key={oIdx} className="border border-gray-200 rounded-lg px-4 py-2.5 text-xs text-gray-600 font-medium bg-gray-50/50">
+                                                                ({String.fromCharCode(65 + oIdx)}) {opt}
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
+                                                )}
+                                                
+                                                {sec.type === 'True/False' && (
+                                                    <div className="flex gap-4">
+                                                        <div className="border border-gray-200 rounded-lg px-6 py-2.5 text-xs text-gray-600 font-medium bg-gray-50/50">True</div>
+                                                        <div className="border border-gray-200 rounded-lg px-6 py-2.5 text-xs text-gray-600 font-medium bg-gray-50/50">False</div>
+                                                    </div>
+                                                )}
+                                                
+                                                {sec.type === 'Short Answer' && (
+                                                    <div className="h-24 w-full mt-3 border-b-2 border-dashed border-gray-200"></div>
+                                                )}
+                                                
+                                                {(sec.type === 'Long Answer' || sec.type === 'Coding') && (
+                                                    <div className="h-48 w-full mt-3 border-b-2 border-dashed border-gray-200 flex flex-col justify-between">
+                                                        <div className="h-12 w-full border-b border-dashed border-gray-100"></div>
+                                                        <div className="h-12 w-full border-b border-dashed border-gray-100"></div>
+                                                        <div className="h-12 w-full border-b border-dashed border-gray-100"></div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {previewQuestions['Short Answer']?.length > 0 && (
-                            <div>
-                                <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-4 mt-8">Section B: Short Analysis</h3>
-                                {previewQuestions['Short Answer'].map((q, idx) => (
-                                    <div key={q._id} className="flex gap-3 mb-6">
-                                        <span className="font-bold text-gray-900">Q{(previewQuestions['MCQ']?.length || 0) + idx + 1}.</span>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium text-gray-800">{q.questionText}</p>
-                                            <div className="h-24 w-full mt-3 border-b-2 border-dashed border-gray-200"></div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {previewQuestions['Long Answer']?.length > 0 && (
-                            <div>
-                                <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-4 mt-8">Section C: Critical Theory</h3>
-                                {previewQuestions['Long Answer'].map((q, idx) => (
-                                    <div key={q._id} className="flex gap-3 mb-8">
-                                        <span className="font-bold text-gray-900">Q{(previewQuestions['MCQ']?.length || 0) + (previewQuestions['Short Answer']?.length || 0) + idx + 1}.</span>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium text-gray-800">{q.questionText}</p>
-                                            <div className="h-48 w-full mt-3 border-b-2 border-dashed border-gray-200 flex flex-col justify-between">
-                                                <div className="h-12 w-full border-b border-dashed border-gray-100"></div>
-                                                <div className="h-12 w-full border-b border-dashed border-gray-100"></div>
-                                                <div className="h-12 w-full border-b border-dashed border-gray-100"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        
-                        {previewQuestions['True/False']?.length > 0 && (
-                            <div>
-                                <h3 className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-4 mt-8">Section D: True or False</h3>
-                                {previewQuestions['True/False'].map((q, idx) => (
-                                    <div key={q._id} className="flex gap-3 mb-6">
-                                        <span className="font-bold text-gray-900">Q{(previewQuestions['MCQ']?.length || 0) + (previewQuestions['Short Answer']?.length || 0) + (previewQuestions['Long Answer']?.length || 0) + idx + 1}.</span>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium text-gray-800 mb-4">{q.questionText}</p>
-                                            <div className="flex gap-4">
-                                                <div className="border border-gray-200 rounded-lg px-6 py-2.5 text-xs text-gray-600 font-medium bg-gray-50/50">True</div>
-                                                <div className="border border-gray-200 rounded-lg px-6 py-2.5 text-xs text-gray-600 font-medium bg-gray-50/50">False</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        
-                        {Object.values(previewQuestions).every(arr => arr?.length === 0) && (
-                            <div className="py-20 text-center">
-                                <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <BookOpen className="w-6 h-6 text-gray-300 dark:text-gray-600" />
+                                    ))}
                                 </div>
-                                <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-1">No Questions Selected</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Configure your distribution on the left to see a live preview.</p>
+                            )
+                        })}
+                        
+                        {Object.keys(previewQuestions).length === 0 && (
+                            <div className="py-20 text-center">
+                                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <BookOpen className="w-6 h-6 text-gray-300" />
+                                </div>
+                                <h3 className="text-sm font-bold text-gray-900 mb-1">No Questions Selected</h3>
+                                <p className="text-xs text-gray-500">Configure your template sections on the left to see a live preview.</p>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 px-6 py-3 flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-gray-400">Draft Auto-saved 2m ago</span>
+                <div className="bg-gray-50 border-t border-gray-100 px-6 py-3 flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-gray-400">Live Blueprint Engine Active</span>
                     <div className="flex gap-3">
-                        <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1"><BookOpen className="w-3 h-3"/> PDF</span>
-                        <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1"><BookOpen className="w-3 h-3"/> Print</span>
+                        <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1"><BookOpen className="w-3 h-3"/> Layout View</span>
                     </div>
                 </div>
             </div>
