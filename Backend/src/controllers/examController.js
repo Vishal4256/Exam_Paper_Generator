@@ -376,7 +376,7 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         }
     });
 
-    let qNumber = 1;
+    qNumber = 1;
     for (const [type, qList] of Object.entries(questionsByType)) {
         if (qList.length === 0) continue;
         
@@ -410,6 +410,7 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         });
         doc.moveDown();
     }
+  }
 };
 
 // Download exam PDF
