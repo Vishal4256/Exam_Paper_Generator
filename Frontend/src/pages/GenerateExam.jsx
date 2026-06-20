@@ -38,6 +38,7 @@ const GenerateExam = () => {
   const [aiGenerating, setAiGenerating] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const editId = searchParams.get('editId');
 
   useEffect(() => {
     fetchData();

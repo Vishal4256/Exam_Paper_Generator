@@ -1,252 +1,154 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import api from '../utils/axiosConfig';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
+import { Key, ArrowLeft, BookOpen } from 'lucide-react';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
-    const [otp, setOtp] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [step, setStep] = useState('email'); // 'email', 'otp', 'reset'
-    const [message, setMessage] = useState('');
-    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
 
-    const handleSendOTP = async (e) => {
+    const handleSendResetLink = async (e) => {
         e.preventDefault();
-        setMessage('');
-        setError('');
         setLoading(true);
         try {
             const res = await api.post('/auth/forgot-password', { email });
             if (res.status === 200) {
-                setMessage('Password reset OTP sent to your email. Please check and verify.');
-                setStep('otp');
+                toast.success('Password reset link sent to your email.');
             }
         } catch (err) {
-            setError(err.response?.data?.msg || "Email not found");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleVerifyOTP = async (e) => {
-        e.preventDefault();
-        setMessage('');
-        setError('');
-        setLoading(true);
-        try {
-            const res = await api.post('/auth/verify-password-reset-otp', { email, otp });
-            if (res.status === 200) {
-                setMessage('OTP verified successfully. Please set your new password.');
-                setStep('reset');
-            }
-        } catch (err) {
-            setError(err.response?.data?.msg || "Invalid OTP");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleResetPassword = async (e) => {
-        e.preventDefault();
-        setMessage('');
-        setError('');
-
-        if (newPassword !== confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
-
-        if (newPassword.length < 6) {
-            setError('Password must be at least 6 characters long');
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const res = await api.post('/auth/reset-password', { 
-                email, 
-                otp, 
-                newPassword 
-            });
-            if (res.status === 200) {
-                setMessage('Password reset successfully! Redirecting to login...');
-                setTimeout(() => { navigate('/login'); }, 2000);
-            }
-        } catch (err) {
-            setError(err.response?.data?.msg || "Password reset failed");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleResendOTP = async () => {
-        setError('');
-        setMessage('');
-        setLoading(true);
-        try {
-            const res = await api.post('/auth/forgot-password', { email });
-            if (res.status === 200) {
-                setMessage('OTP resent to your email');
-            }
-        } catch (err) {
-            setError(err.response?.data?.msg || "Failed to resend OTP");
+            toast.error(err.response?.data?.msg || "Failed to send reset link.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#09090b] px-4 relative overflow-hidden">
-            {/* Background Decor */}
-            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="min-h-screen flex w-full bg-white dark:bg-zinc-950">
+            {/* Left Side - Branding (Hidden on mobile) */}
+            <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-indigo-700 to-indigo-900 p-12 flex-col justify-between relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:20px_20px]" />
+                
+                <div className="relative z-10">
+                    <Link to="/" className="flex items-center gap-2 text-white">
+                        <BookOpen className="w-8 h-8" />
+                        <span className="text-xl font-bold tracking-tight">ExamFlow</span>
+                    </Link>
+                </div>
 
-            <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="max-w-md w-full space-y-8 bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-10 rounded-[2.5rem] shadow-2xl relative z-10"
-            >
-                {step === 'email' && (
-                    <>
-                        <div>
-                            <h2 className="text-center text-3xl font-black text-white tracking-tight">Reset Password</h2>
-                            <p className="mt-2 text-center text-zinc-500 text-sm">Enter your email to receive a reset OTP</p>
+                <div className="relative z-10 flex flex-col items-center text-center max-w-lg mx-auto">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                        className="w-full aspect-square max-w-[400px] mb-10 rounded-3xl bg-indigo-950/40 p-4 border border-indigo-500/20 shadow-2xl backdrop-blur-sm flex items-center justify-center"
+                    >
+                        <img 
+                            src="https://images.unsplash.com/photo-1559757175-5700dde675bc?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                            alt="Academic Intelligence" 
+                            className="rounded-2xl object-cover w-full h-full opacity-90 mix-blend-screen"
+                        />
+                    </motion.div>
+                    
+                    <motion.h1 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                        className="text-4xl font-bold text-white mb-4 tracking-tight"
+                    >
+                        Harness Academic Intelligence
+                    </motion.h1>
+                    
+                    <motion.p 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8, delay: 0.3 }}
+                        className="text-indigo-200 text-lg"
+                    >
+                        Experience the world's most intuitive exam generation platform, designed for precision and academic rigor.
+                    </motion.p>
+                </div>
+
+                <div className="relative z-10 flex justify-between items-center text-indigo-300 text-sm">
+                    <p>© {new Date().getFullYear()} ExamFlow Pro</p>
+                    <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        System Online
+                    </div>
+                </div>
+            </div>
+
+            {/* Right Side - Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-24 relative">
+                {/* Mobile Logo */}
+                <div className="absolute top-8 left-8 lg:hidden">
+                    <Link to="/" className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                        <BookOpen className="w-8 h-8" />
+                        <span className="text-xl font-bold tracking-tight">ExamFlow</span>
+                    </Link>
+                </div>
+
+                <motion.div 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="w-full max-w-md space-y-8"
+                >
+                    <div className="text-center">
+                        <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-indigo-100 dark:border-indigo-900/50">
+                            <Key className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                         </div>
+                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Forgot password?</h2>
+                        <p className="mt-3 text-gray-500 dark:text-gray-400">
+                            No worries, we'll send you reset instructions.
+                        </p>
+                    </div>
 
-                        <form className="mt-8 space-y-5" onSubmit={handleSendOTP}>
+                    <form className="mt-8 space-y-6" onSubmit={handleSendResetLink}>
+                        <div>
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Email Address
+                            </label>
                             <input 
+                                id="email"
                                 type="email" 
-                                placeholder="Email address" 
+                                placeholder="Enter your email address" 
                                 required 
                                 disabled={loading}
                                 value={email}
-                                className="rounded-2xl block w-full px-5 py-4 bg-zinc-950/50 border border-zinc-800 text-white placeholder-zinc-600 focus:ring-2 focus:ring-blue-500/40 outline-none transition-all disabled:opacity-50"
+                                className="block w-full px-4 py-3.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all disabled:opacity-50 shadow-sm"
                                 onChange={(e) => setEmail(e.target.value)} 
                             />
-
-                            {error && <div className="text-rose-500 text-sm text-center bg-rose-500/10 py-2 rounded-xl border border-rose-500/20">{error}</div>}
-                            {message && <div className="text-emerald-500 text-sm text-center bg-emerald-500/10 py-2 rounded-xl border border-emerald-500/20">{message}</div>}
-
-                            <button 
-                                type="submit" 
-                                disabled={loading}
-                                className="w-full py-4 text-white font-bold bg-blue-600 rounded-2xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {loading ? 'Sending OTP...' : 'Send Reset OTP'}
-                            </button>
-                        </form>
-
-                        <p className="text-center text-sm text-zinc-500">
-                            Remember your password? <Link to="/login" className="text-blue-500 hover:underline font-bold">Login here</Link>
-                        </p>
-                    </>
-                )}
-
-                {step === 'otp' && (
-                    <>
-                        <div>
-                            <h2 className="text-center text-3xl font-black text-white tracking-tight">Verify OTP</h2>
-                            <p className="mt-2 text-center text-zinc-500 text-sm">Enter the OTP sent to {email}</p>
                         </div>
 
-                        <form className="mt-8 space-y-5" onSubmit={handleVerifyOTP}>
-                            <input 
-                                type="text" 
-                                placeholder="Enter 6-digit OTP" 
-                                required 
-                                maxLength="6"
-                                disabled={loading}
-                                value={otp}
-                                className="rounded-2xl block w-full px-5 py-4 bg-zinc-950/50 border border-zinc-800 text-white placeholder-zinc-600 focus:ring-2 focus:ring-blue-500/40 outline-none transition-all text-center text-2xl tracking-widest font-bold disabled:opacity-50"
-                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} 
-                            />
+                        <button 
+                            type="submit" 
+                            disabled={loading || !email}
+                            className="w-full py-3.5 text-white font-semibold bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-500/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {loading ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Sending...
+                                </>
+                            ) : (
+                                'Reset Password'
+                            )}
+                        </button>
+                    </form>
 
-                            {error && <div className="text-rose-500 text-sm text-center bg-rose-500/10 py-2 rounded-xl border border-rose-500/20">{error}</div>}
-                            {message && <div className="text-emerald-500 text-sm text-center bg-emerald-500/10 py-2 rounded-xl border border-emerald-500/20">{message}</div>}
-
-                            <button 
-                                type="submit" 
-                                disabled={loading || otp.length !== 6}
-                                className="w-full py-4 text-white font-bold bg-blue-600 rounded-2xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {loading ? 'Verifying...' : 'Verify OTP'}
-                            </button>
-
-                            <div className="flex items-center justify-between text-sm">
-                                <button
-                                    type="button"
-                                    onClick={() => setStep('email')}
-                                    className="text-zinc-400 hover:text-white transition-colors"
-                                >
-                                    ← Back
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleResendOTP}
-                                    disabled={loading}
-                                    className="text-blue-500 hover:text-blue-400 transition-colors disabled:opacity-50"
-                                >
-                                    Resend OTP
-                                </button>
-                            </div>
-                        </form>
-                    </>
-                )}
-
-                {step === 'reset' && (
-                    <>
-                        <div>
-                            <h2 className="text-center text-3xl font-black text-white tracking-tight">Set New Password</h2>
-                            <p className="mt-2 text-center text-zinc-500 text-sm">Enter your new password</p>
-                        </div>
-
-                        <form className="mt-8 space-y-5" onSubmit={handleResetPassword}>
-                            <div className="space-y-4">
-                                <input 
-                                    type="password" 
-                                    placeholder="New Password" 
-                                    required 
-                                    disabled={loading}
-                                    value={newPassword}
-                                    className="rounded-2xl block w-full px-5 py-4 bg-zinc-950/50 border border-zinc-800 text-white placeholder-zinc-600 focus:ring-2 focus:ring-blue-500/40 outline-none transition-all disabled:opacity-50"
-                                    onChange={(e) => setNewPassword(e.target.value)} 
-                                />
-                                <input 
-                                    type="password" 
-                                    placeholder="Confirm New Password" 
-                                    required 
-                                    disabled={loading}
-                                    value={confirmPassword}
-                                    className="rounded-2xl block w-full px-5 py-4 bg-zinc-950/50 border border-zinc-800 text-white placeholder-zinc-600 focus:ring-2 focus:ring-blue-500/40 outline-none transition-all disabled:opacity-50"
-                                    onChange={(e) => setConfirmPassword(e.target.value)} 
-                                />
-                            </div>
-
-                            {error && <div className="text-rose-500 text-sm text-center bg-rose-500/10 py-2 rounded-xl border border-rose-500/20">{error}</div>}
-                            {message && <div className="text-emerald-500 text-sm text-center bg-emerald-500/10 py-2 rounded-xl border border-emerald-500/20">{message}</div>}
-
-                            <button 
-                                type="submit" 
-                                disabled={loading || !newPassword || !confirmPassword}
-                                className="w-full py-4 text-white font-bold bg-blue-600 rounded-2xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {loading ? 'Resetting...' : 'Reset Password'}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => setStep('otp')}
-                                className="w-full text-zinc-400 hover:text-white transition-colors text-sm"
-                            >
-                                ← Back to OTP
-                            </button>
-                        </form>
-                    </>
-                )}
-            </motion.div>
+                    <div className="text-center mt-8">
+                        <Link to="/login" className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to login
+                        </Link>
+                    </div>
+                </motion.div>
+            </div>
         </div>
     );
 };

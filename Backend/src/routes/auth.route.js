@@ -5,7 +5,6 @@ import {
     resendVerificationOTP,
     login, 
     forgotPassword, 
-    verifyPasswordResetOTP,
     resetPassword,
     getMe,
     updateSettings,
@@ -16,7 +15,10 @@ import auth from '../middleware/authMiddleware.js';
 const router = Router();
 
 // Registration routes
-router.post('/register', register);
+router.post('/register', (req, res, next) => {
+    console.log(`[ROUTE] POST /auth/register body:`, req.body);
+    next();
+}, register);
 router.post('/verify-email-otp', verifyEmailOTP);
 router.post('/resend-verification-otp', resendVerificationOTP);
 
@@ -25,8 +27,7 @@ router.post('/login', login);
 
 // Password reset routes
 router.post('/forgot-password', forgotPassword);
-router.post('/verify-password-reset-otp', verifyPasswordResetOTP);
-router.post('/reset-password', resetPassword);
+router.post('/reset-password/:token', resetPassword);
 
 // Protected routes
 router.get('/me', auth, getMe);
