@@ -14,18 +14,7 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    isEmailVerified: {
-        type: Boolean,
-        default: false
-    },
-    emailVerificationOTP: {
-        type: String,
-        default: undefined
-    },
-    emailVerificationOTPExpires: {
-        type: Date,
-        default: undefined
-    },
+
     theme: {
         type: String,
         enum: ['light', 'dark'],

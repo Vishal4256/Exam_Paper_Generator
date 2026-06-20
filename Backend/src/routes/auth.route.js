@@ -1,8 +1,6 @@
 import express, { Router } from 'express';
 import { 
     register, 
-    verifyEmailOTP, 
-    resendVerificationOTP,
     login, 
     forgotPassword, 
     resetPassword,
@@ -19,8 +17,6 @@ router.post('/register', (req, res, next) => {
     console.log(`[ROUTE] POST /auth/register body:`, req.body);
     next();
 }, register);
-router.post('/verify-email-otp', verifyEmailOTP);
-router.post('/resend-verification-otp', resendVerificationOTP);
 
 // Login route
 router.post('/login', login);
