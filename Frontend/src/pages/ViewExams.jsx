@@ -172,6 +172,7 @@ const ViewExams = () => {
                                     <td className="px-6 py-4">
                                         <div className="font-bold text-gray-900 dark:text-white mb-0.5">{exam.examTitle}</div>
                                         {exam.collegeName && <div className="text-xs text-gray-500 dark:text-gray-400">{exam.collegeName}</div>}
+                                        {exam.topic && <div className="text-xs font-semibold text-indigo-500 mt-1">Topic: {exam.topic}</div>}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400">

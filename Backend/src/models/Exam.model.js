@@ -45,6 +45,10 @@ const ExamSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    topic: {
+        type: String,
+        default: ''
+    },
     examDate: {
         type: Date
     },

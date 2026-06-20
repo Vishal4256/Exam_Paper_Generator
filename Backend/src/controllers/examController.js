@@ -5,7 +5,7 @@ import axios from 'axios';
 
 const generateExam = async (req, res) => {
     try {
-        const { examTitle, description, collegeName, institutionType, department, academicSession, courseCode, logo, examHeaderStyle, subject, examDate, duration, instructions, marksDistribution, difficulty } = req.body;
+        const { examTitle, description, collegeName, institutionType, department, academicSession, courseCode, logo, examHeaderStyle, subject, topic, examDate, duration, instructions, marksDistribution, difficulty } = req.body;
 
         let selectedQuestions = [];
         let totalCalculatedMarks = 0;
@@ -103,6 +103,7 @@ const generateExam = async (req, res) => {
             logo,
             examHeaderStyle,
             subject,
+            topic,
             instructions,
             marksDistribution,
             examDate,
@@ -185,6 +186,7 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         doc.fontSize(12).text(exam.examTitle + (isAnswerKey ? ' - ANSWER KEY' : ''), { align: 'center' }).moveDown();
         doc.fontSize(10);
         doc.text(`Subject: ${exam.subject || 'N/A'}`, 50, doc.y, { continued: true }).text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, { continued: true, align: 'center' }).text(`Max Marks: ${exam.totalMarks || 0}`, { align: 'right' });
+        if (exam.topic) doc.text(`Topic: ${exam.topic}`, 50, doc.y);
         doc.moveDown(0.5);
     } else if (style === 'Style 2') {
         doc.font('Times-Bold').fontSize(20).text(exam.collegeName || exam.institutionName || 'INSTITUTION NAME', { align: 'center' }).moveDown(0.2);
@@ -195,6 +197,7 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         doc.fontSize(14).text(exam.examTitle + (isAnswerKey ? ' - ANSWER KEY' : ''), { align: 'center' }).moveDown();
         doc.fontSize(10);
         doc.text(`Course: ${exam.courseCode || exam.subject || 'N/A'}`, 50, doc.y, { continued: true }).text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, { align: 'right' });
+        if (exam.topic) doc.text(`Topic: ${exam.topic}`, 50, doc.y);
         doc.text(`Maximum Marks: ${exam.totalMarks || 0}`, { align: 'right' });
         doc.moveDown(0.5);
         doc.font('Helvetica');
@@ -210,8 +213,9 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         
         doc.fontSize(9).text(`SUBJECT: ${exam.subject}`, 50, 100);
         doc.text(`SESSION: ${exam.academicSession}`, 400, 100);
-        doc.text(`TIME: ${exam.duration} MINS`, 50, 110);
+        doc.text(`TOPIC: ${exam.topic || 'N/A'}`, 50, 110);
         doc.text(`MARKS: ${exam.totalMarks}`, 400, 110);
+        doc.text(`TIME: ${exam.duration} MINS`, 50, 120);
         doc.moveDown(3);
     } else {
         // Style 3 (Default)
@@ -223,6 +227,9 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         doc.fontSize(14).text(exam.examTitle + (isAnswerKey ? ' - ANSWER KEY' : ''), { align: 'center' }).moveDown();
         if (exam.courseCode) {
             doc.fontSize(10).text(`Course: ${exam.courseCode}`, { align: 'center' }).moveDown();
+        }
+        if (exam.topic) {
+            doc.fontSize(10).text(`Topic: ${exam.topic}`, { align: 'center' }).moveDown();
         }
         doc.fontSize(10);
         doc.text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, 50, doc.y, { continued: true }).text(`Total Marks: ${exam.totalMarks || 0}`, { align: 'right' });
