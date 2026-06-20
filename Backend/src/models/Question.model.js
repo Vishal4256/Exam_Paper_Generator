@@ -8,7 +8,7 @@ const QuestionSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['MCQ', 'Short Answer', 'Long Answer', 'True/False'],
+        enum: ['MCQ', 'Short Answer', 'Long Answer', 'True/False', 'Coding'],
         default: 'MCQ',
         required: true
     },
