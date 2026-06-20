@@ -17,7 +17,7 @@ export const createTransporter = () => {
     return nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
         port: process.env.SMTP_PORT || 465,
-        secure: Number(process.env.SMTP_PORT) === 465,
+        secure: Number(process.env.SMTP_PORT || 465) === 465,
         connectionTimeout: 5000,
         greetingTimeout: 5000,
         socketTimeout: 5000,
