@@ -31,63 +31,6 @@ export const createTransporter = () => {
     });
 };
 
-// Send OTP email for email verification
-export const sendVerificationOTP = async (email, otp) => {
-    try {
-        const transporter = createTransporter();
-        
-        try {
-            await transporter.verify();
-            console.log("SMTP connection verified successfully for OTP");
-        } catch (verifyError) {
-            console.error("SMTP Verification Error in OTP:", verifyError);
-            throw verifyError;
-        }
-
-        const mailOptions = {
-            from: `"${process.env.APP_NAME || 'Exam Paper Generator'}" <${process.env.SMTP_USER}>`,
-            to: email,
-            subject: 'Email Verification OTP',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-                    <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h2 style="color: #333; text-align: center; margin-bottom: 20px;">Email Verification</h2>
-                        <p style="color: #666; font-size: 16px; line-height: 1.6;">
-                            Thank you for registering! Please use the following OTP to verify your email address:
-                        </p>
-                        <div style="background-color: #f0f0f0; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0;">
-                            <h1 style="color: #4F46E5; font-size: 36px; letter-spacing: 8px; margin: 0; font-weight: bold;">${otp}</h1>
-                        </div>
-                        <p style="color: #666; font-size: 14px; line-height: 1.6;">
-                            This OTP will expire in 10 minutes. If you didn't request this verification, please ignore this email.
-                        </p>
-                        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                        <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
-                            This is an automated message, please do not reply.
-                        </p>
-                    </div>
-                </div>
-            `,
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Verification OTP email sent: %s', info.messageId);
-        return { success: true, messageId: info.messageId };
-    } catch (error) {
-        console.error('Error sending verification OTP email:', error);
-        
-        // Provide more detailed error messages
-        if (error.code === 'EAUTH') {
-            throw new Error('Email authentication failed. Please check your SMTP_USER and SMTP_PASS in .env file.');
-        } else if (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT') {
-            throw new Error('Could not connect to email server. Please check your SMTP_HOST and SMTP_PORT settings.');
-        } else if (error.message.includes('SMTP_USER') || error.message.includes('SMTP_PASS')) {
-            throw error; // Re-throw validation errors as-is
-        } else {
-            throw new Error(`Failed to send verification email: ${error.message || error.toString()}`);
-        }
-    }
-};
 
 // Send Password Reset Link email
 export const sendPasswordResetLink = async (email, name, resetLink) => {
@@ -160,8 +103,4 @@ export const sendPasswordResetLink = async (email, name, resetLink) => {
     }
 };
 
-// Generate a 6-digit OTP
-export const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-};
 

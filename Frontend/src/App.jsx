@@ -13,7 +13,7 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import VerifyEmail from './pages/VerifyEmail';
+
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
@@ -64,10 +64,7 @@ function App() {
       path: '/register',
       element: <Register />,
     },
-    {
-      path: '/verify-email',
-      element: <VerifyEmail />,
-    },
+
     {
       path: '/forgot-password',
       element: <ForgotPassword />,
