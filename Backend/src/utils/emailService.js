@@ -11,7 +11,7 @@ const validateEmailConfig = () => {
 };
 
 // Create reusable transporter object using SMTP transport
-const createTransporter = () => {
+export const createTransporter = () => {
     validateEmailConfig();
     
     return nodemailer.createTransport({

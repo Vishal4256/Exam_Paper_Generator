@@ -14,9 +14,9 @@ const register = async (req, res) => {
         console.log("Registration attempt:", { name, email });
         
         console.log("Checking SMTP config...");
-        console.log("- SMTP_HOST exists:", !!process.env.SMTP_HOST);
-        console.log("- SMTP_PORT exists:", !!process.env.SMTP_PORT);
-        console.log("- SMTP_USER exists:", !!process.env.SMTP_USER);
+        console.log("- SMTP_HOST:", process.env.SMTP_HOST);
+        console.log("- SMTP_PORT:", process.env.SMTP_PORT);
+        console.log("- SMTP_USER:", process.env.SMTP_USER);
         console.log("- SMTP_PASS exists:", !!process.env.SMTP_PASS);
 
         // Check if user exists
@@ -43,20 +43,21 @@ const register = async (req, res) => {
                 console.log("User updated successfully in DB:", user._id);
                 console.timeEnd("register-db");
                 
-                // Return success immediately
-                res.status(200).json({ success: true, message: "Account updated successfully. Please verify your email.", msg: "Account updated successfully. Please verify your email." });
-                console.timeEnd("register");
-                
-                // Send OTP email asynchronously
-                console.log("Attempting to send verification email (background) to:", email);
+                // Send OTP email synchronously to capture errors
+                console.log("Attempting to send verification email to:", email);
                 console.time("register-email");
-                sendVerificationOTP(email, otp).then(() => {
+                try {
+                    await sendVerificationOTP(email, otp);
                     console.timeEnd("register-email");
-                    console.log("Verification email sent successfully in background.");
-                }).catch(emailError => {
+                    console.log("Verification email sent successfully.");
+                    
+                    res.status(200).json({ success: true, message: "Account updated successfully. Please verify your email.", msg: "Account updated successfully. Please verify your email." });
+                    console.timeEnd("register");
+                } catch (emailError) {
                     console.timeEnd("register-email");
-                    console.warn('Warning: Email sending failed in background, but registration succeeded:', emailError.message);
-                });
+                    console.error('Email sending failed during registration update:', emailError);
+                    res.status(500).json({ success: false, msg: "Failed to send verification email: " + emailError.message, message: "Failed to send verification email: " + emailError.message });
+                }
                 return;
             }
         }
@@ -82,20 +83,25 @@ const register = async (req, res) => {
         console.log("User successfully created in DB:", user._id);
         console.timeEnd("register-db");
 
-        // Return success immediately
-        res.status(201).json({ success: true, message: "Account created successfully. Please verify your email.", msg: "Account created successfully. Please verify your email." });
-        console.timeEnd("register");
-
-        // Send OTP email asynchronously
-        console.log("Attempting to send verification email (background) to:", email);
+        // Send OTP email synchronously to capture errors
+        console.log("Attempting to send verification email to:", email);
         console.time("register-email");
-        sendVerificationOTP(email, otp).then(() => {
+        try {
+            await sendVerificationOTP(email, otp);
             console.timeEnd("register-email");
-            console.log("Verification email sent successfully in background.");
-        }).catch(emailError => {
+            console.log("Verification email sent successfully.");
+            
+            res.status(201).json({ success: true, message: "Account created successfully. Please verify your email.", msg: "Account created successfully. Please verify your email." });
+            console.timeEnd("register");
+        } catch (emailError) {
             console.timeEnd("register-email");
-            console.warn('Warning: Email sending failed in background, but registration succeeded:', emailError.message);
-        });
+            console.error('Email sending failed during registration:', emailError);
+            
+            // Delete the unverified user so they can try registering again
+            await User.findByIdAndDelete(user._id);
+            
+            res.status(500).json({ success: false, msg: "Failed to send verification email: " + emailError.message, message: "Failed to send verification email: " + emailError.message });
+        }
 
     } catch (err) {
         console.error('Registration error:', err);
