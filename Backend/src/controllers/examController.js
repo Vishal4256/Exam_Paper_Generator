@@ -5,7 +5,7 @@ import axios from 'axios';
 
 const generateExam = async (req, res) => {
     try {
-        const { examTitle, description, collegeName, institutionType, department, academicSession, courseCode, logo, examHeaderStyle, subject, topic, examDate, duration, instructions, marksDistribution, blueprint, difficulty } = req.body;
+        const { examMode, examTitle, description, collegeName, institutionType, department, academicSession, courseCode, logo, examHeaderStyle, subject, topic, examDate, duration, instructions, marksDistribution, blueprint, difficulty } = req.body;
 
         let selectedQuestions = [];
         let totalCalculatedMarks = 0;
@@ -22,7 +22,11 @@ const generateExam = async (req, res) => {
                 calculatedDuration += parseInt(section.duration) || 0;
 
                 if (count > 0) {
-                    let query = { user: req.user.id, subject: subject, type: sectionType, status: 'active' };
+                    let sectionSubject = subject;
+                    if (examMode === 'Multi Subject') {
+                        sectionSubject = section.subject || section.sectionName;
+                    }
+                    let query = { user: req.user.id, subject: sectionSubject, type: sectionType, status: 'active' };
                     if (section.difficulty && section.difficulty !== 'Mixed' && section.difficulty !== 'All') {
                         query.difficulty = section.difficulty;
                     }
@@ -136,6 +140,7 @@ const generateExam = async (req, res) => {
         // Save the Exam paper
         const newExam = new Exam({
             user: req.user.id,
+            examMode: examMode || 'Single Subject',
             examTitle,
             description,
             collegeName,
@@ -231,8 +236,9 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         doc.fontSize(16).text(exam.collegeName || exam.institutionName || 'INSTITUTION NAME', { align: 'center', underline: false }).moveDown(0.2);
         doc.fontSize(12).text(exam.examTitle + (isAnswerKey ? ' - ANSWER KEY' : ''), { align: 'center' }).moveDown();
         doc.fontSize(10);
-        doc.text(`Subject: ${exam.subject || 'N/A'}`, 50, doc.y, { continued: true }).text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, { continued: true, align: 'center' }).text(`Max Marks: ${exam.totalMarks || 0}`, { align: 'right' });
-        if (exam.topic) doc.text(`Topic: ${exam.topic}`, 50, doc.y);
+        const displaySubject = exam.examMode === 'Multi Subject' ? 'Multiple Subjects' : (exam.subject || 'N/A');
+        doc.text(`Subject: ${displaySubject}`, 50, doc.y, { continued: true }).text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, { continued: true, align: 'center' }).text(`Max Marks: ${exam.totalMarks || 0}`, { align: 'right' });
+        if (exam.topic && exam.examMode !== 'Multi Subject') doc.text(`Topic: ${exam.topic}`, 50, doc.y);
         doc.moveDown(0.5);
     } else if (style === 'Style 2') {
         doc.font('Times-Bold').fontSize(20).text(exam.collegeName || exam.institutionName || 'INSTITUTION NAME', { align: 'center' }).moveDown(0.2);
@@ -242,8 +248,9 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         doc.font('Helvetica-Bold').fontSize(10).text(exam.academicSession || 'SESSION', { align: 'center' }).moveDown(0.5);
         doc.fontSize(14).text(exam.examTitle + (isAnswerKey ? ' - ANSWER KEY' : ''), { align: 'center' }).moveDown();
         doc.fontSize(10);
-        doc.text(`Course: ${exam.courseCode || exam.subject || 'N/A'}`, 50, doc.y, { continued: true }).text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, { align: 'right' });
-        if (exam.topic) doc.text(`Topic: ${exam.topic}`, 50, doc.y);
+        const displaySubject = exam.examMode === 'Multi Subject' ? 'Multiple Subjects' : (exam.courseCode || exam.subject || 'N/A');
+        doc.text(`Course: ${displaySubject}`, 50, doc.y, { continued: true }).text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, { align: 'right' });
+        if (exam.topic && exam.examMode !== 'Multi Subject') doc.text(`Topic: ${exam.topic}`, 50, doc.y);
         doc.text(`Maximum Marks: ${exam.totalMarks || 0}`, { align: 'right' });
         doc.moveDown(0.5);
         doc.font('Helvetica');
@@ -257,9 +264,10 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         
         doc.moveTo(40, 95).lineTo(572, 95).stroke(); // Separator line
         
-        doc.fontSize(9).text(`SUBJECT: ${exam.subject}`, 50, 100);
+        const displaySubject = exam.examMode === 'Multi Subject' ? 'Multiple Subjects' : exam.subject;
+        doc.fontSize(9).text(`SUBJECT: ${displaySubject}`, 50, 100);
         doc.text(`SESSION: ${exam.academicSession}`, 400, 100);
-        doc.text(`TOPIC: ${exam.topic || 'N/A'}`, 50, 110);
+        doc.text(`TOPIC: ${exam.examMode === 'Multi Subject' ? 'N/A' : (exam.topic || 'N/A')}`, 50, 110);
         doc.text(`MARKS: ${exam.totalMarks}`, 400, 110);
         doc.text(`TIME: ${exam.duration} MINS`, 50, 120);
         doc.moveDown(3);
@@ -274,7 +282,9 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
         if (exam.courseCode) {
             doc.fontSize(10).text(`Course: ${exam.courseCode}`, { align: 'center' }).moveDown();
         }
-        if (exam.topic) {
+        if (exam.examMode === 'Multi Subject') {
+            doc.fontSize(10).text(`Multiple Subjects`, { align: 'center' }).moveDown();
+        } else if (exam.topic) {
             doc.fontSize(10).text(`Topic: ${exam.topic}`, { align: 'center' }).moveDown();
         }
         doc.fontSize(10);
@@ -310,10 +320,14 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
             doc.text(sec.sectionName, 50, y, { width: 110 });
             doc.text(sec.type || 'MCQ', 170, y);
             doc.text(sec.questionCount ? sec.questionCount.toString() : '0', 230, y);
-            doc.text(sec.totalMarks ? sec.totalMarks.toString() : '0', 290, y);
+            doc.text(sec.totalMarks ? sec.totalMarks.toString() : (sec.marksPerQuestion * sec.questionCount).toString(), 290, y);
             doc.text(sec.duration ? `${sec.duration}m` : '-', 340, y);
-            const topicsText = Array.isArray(sec.topics) ? sec.topics.join(', ') : (sec.topics || '-');
-            doc.text(topicsText, 390, y, { width: 90 });
+            
+            let topicsStr = Array.isArray(sec.topics) ? sec.topics.join(', ') : (sec.topics || '-');
+            if (exam.examMode === 'Multi Subject' && sec.subject) {
+                topicsStr = `[${sec.subject}] ` + topicsStr;
+            }
+            doc.text(topicsStr, 390, y, { width: 90 });
             doc.text(sec.difficulty || 'Mixed', 490, y);
             doc.moveDown(0.5);
         });
