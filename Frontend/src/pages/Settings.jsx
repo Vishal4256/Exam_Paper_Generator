@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Key, Palette, Save, Moon, Sun, Eye, EyeOff, Building2 } from 'lucide-react';
+import { User, Lock, Key, Palette, Save, Moon, Sun, Eye, EyeOff } from 'lucide-react';
 import api from '../utils/axiosConfig';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
@@ -8,17 +8,7 @@ const Settings = () => {
   const { user, updateUser, toggleTheme } = useAuth();
   const [profileData, setProfileData] = useState({ name: '', email: '', profilePicture: '' });
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [institutionData, setInstitutionData] = useState({
-      institutionName: '',
-      institutionType: 'College',
-      department: '',
-      examTitle: '',
-      academicSession: '',
-      courseCode: '',
-      defaultDuration: 180,
-      defaultInstructions: '',
-      logo: ''
-  });
+
   const [showPassword, setShowPassword] = useState(false);
   
   const [loading, setLoading] = useState(false);
@@ -26,29 +16,13 @@ const Settings = () => {
   useEffect(() => {
     const fetchSettingsData = async () => {
       try {
-        const [profileRes, instRes] = await Promise.all([
-            api.get('/users/profile'),
-            api.get('/settings/institution')
-        ]);
+        const profileRes = await api.get('/users/profile');
         
         setProfileData({ 
             name: profileRes.data.name, 
             email: profileRes.data.email, 
             profilePicture: profileRes.data.profilePicture || '' 
         });
-        
-        if (instRes.data) {
-            setInstitutionData(prev => ({ 
-                ...prev, 
-                institutionName: instRes.data.institutionName || '',
-                institutionType: instRes.data.institutionType || 'College',
-                department: instRes.data.department || '',
-                examTitle: instRes.data.defaultExamTitle || '',
-                academicSession: instRes.data.academicSession || '',
-                logo: instRes.data.logoUrl || '',
-                defaultInstructions: instRes.data.instructions || ''
-            }));
-        }
       } catch (err) {
         toast.error('Failed to load settings');
       }
@@ -97,26 +71,7 @@ const Settings = () => {
 
 
 
-  const handleInstitutionUpdate = async (e) => {
-      e.preventDefault();
-      setLoading(true);
-      try {
-          await api.put('/settings/institution', {
-              institutionType: institutionData.institutionType,
-              institutionName: institutionData.institutionName,
-              department: institutionData.department,
-              defaultExamTitle: institutionData.examTitle,
-              academicSession: institutionData.academicSession,
-              logoUrl: institutionData.logo,
-              instructions: institutionData.defaultInstructions
-          });
-          toast.success('Institution settings saved!');
-      } catch (err) {
-          toast.error('Failed to save institution settings');
-      } finally {
-          setLoading(false);
-      }
-  };
+
 
   const calculateStrength = (pwd) => {
       if(!pwd) return { label: '', color: 'bg-transparent' };
@@ -227,54 +182,6 @@ const Settings = () => {
           </div>
         </div>
 
-        {/* Institution Settings */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-indigo-500" /> Institution Settings (Defaults)
-            </h2>
-            <form onSubmit={handleInstitutionUpdate} className="space-y-4 max-w-2xl">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Institution Type</label>
-                        <select value={institutionData.institutionType} onChange={(e) => setInstitutionData({...institutionData, institutionType: e.target.value})} className="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 border text-sm">
-                            <option value="School">School</option>
-                            <option value="College">College</option>
-                            <option value="University">University</option>
-                            <option value="Coaching Institute">Coaching Institute</option>
-                            <option value="Training Center">Training Center</option>
-                            <option value="Custom">Custom</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Institution Name</label>
-                        <input type="text" placeholder="ABC University" value={institutionData.institutionName} onChange={(e) => setInstitutionData({...institutionData, institutionName: e.target.value})} className="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 border text-sm" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
-                        <input type="text" placeholder="Computer Science" value={institutionData.department} onChange={(e) => setInstitutionData({...institutionData, department: e.target.value})} className="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 border text-sm" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Default Exam Title</label>
-                        <input type="text" placeholder="Mid Semester Examination" value={institutionData.examTitle} onChange={(e) => setInstitutionData({...institutionData, examTitle: e.target.value})} className="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 border text-sm" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Academic Session</label>
-                        <input type="text" placeholder="2025-26" value={institutionData.academicSession} onChange={(e) => setInstitutionData({...institutionData, academicSession: e.target.value})} className="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 border text-sm" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Logo URL (PNG/JPG)</label>
-                        <input type="url" placeholder="https://example.com/logo.png" value={institutionData.logo} onChange={(e) => setInstitutionData({...institutionData, logo: e.target.value})} className="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 border text-sm" />
-                    </div>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Default Instructions</label>
-                    <textarea rows="4" placeholder="1. Attempt all questions..." value={institutionData.defaultInstructions} onChange={(e) => setInstitutionData({...institutionData, defaultInstructions: e.target.value})} className="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2.5 border text-sm"></textarea>
-                </div>
-                <button type="submit" disabled={loading} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-70 mt-2">
-                    <Save className="w-4 h-4" /> Save Default Settings
-                </button>
-            </form>
-        </div>
 
       </div>
     </div>

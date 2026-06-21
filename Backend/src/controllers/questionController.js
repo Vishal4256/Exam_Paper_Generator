@@ -169,6 +169,7 @@ const bulkImportQuestions = async (req, res) => {
         }
 
         const results = [];
+        const errors = [];
         const filePath = path.join(__dirname, '../../uploads', req.file.filename);
 
         fs.createReadStream(filePath)
@@ -177,41 +178,129 @@ const bulkImportQuestions = async (req, res) => {
             .on('end', async () => {
                 try {
                     let importedCount = 0;
-                    for (const row of results) {
-                        if (!row.questionText || !row.correctAnswer || !row.subject) continue;
+                    const validTypes = ['MCQ', 'Short Answer', 'Long Answer', 'True/False', 'Coding'];
+                    const validDifficulties = ['Easy', 'Medium', 'Hard'];
 
-                        const exists = await Question.findOne({ questionText: row.questionText, user: req.user.id });
-                        if (exists) continue; // Prevent duplicates
+                    for (let i = 0; i < results.length; i++) {
+                        const row = results[i];
+                        const rowNum = i + 2; // Assuming row 1 is header
 
-                        const options = row.options ? row.options.split('|').map(o => o.trim()) : [];
-                        const tags = row.tags ? row.tags.split('|').map(t => t.trim()) : [];
+                        // Handle alternative column names
+                        const questionText = row.questionText || row.question || row.Question;
+                        const subject = row.subject || row.Subject;
+                        let correctAnswer = row.correctAnswer || row.CorrectAnswer;
 
-                        const newQ = new Question({
-                            user: req.user.id,
-                            type: row.type || 'MCQ',
-                            questionText: row.questionText,
-                            options: options,
-                            correctAnswer: row.correctAnswer,
-                            subject: row.subject,
-                            difficulty: row.difficulty || 'Medium',
-                            topic: row.topic || '',
-                            marks: row.marks ? Number(row.marks) : 1,
-                            explanation: row.explanation || '',
-                            tags: tags,
-                            source: 'manual'
-                        });
+                        if (!questionText || questionText.trim() === '') {
+                            errors.push(`Row ${rowNum}: Missing 'questionText' or 'question'`);
+                            continue;
+                        }
+                        if (!correctAnswer || correctAnswer.trim() === '') {
+                            errors.push(`Row ${rowNum}: Missing 'correctAnswer'`);
+                            continue;
+                        }
+                        if (!subject || subject.trim() === '') {
+                            errors.push(`Row ${rowNum}: Missing 'subject'`);
+                            continue;
+                        }
 
-                        await newQ.save();
-                        importedCount++;
+                        const type = row.type && row.type.trim() !== '' ? row.type.trim() : 'MCQ';
+                        if (!validTypes.includes(type)) {
+                            errors.push(`Row ${rowNum}: Invalid 'type' (${type}). Expected: ${validTypes.join(', ')}`);
+                            continue;
+                        }
+
+                        const difficulty = row.difficulty && row.difficulty.trim() !== '' ? row.difficulty.trim() : 'Medium';
+                        if (!validDifficulties.includes(difficulty)) {
+                            errors.push(`Row ${rowNum}: Invalid 'difficulty' (${difficulty}). Expected: ${validDifficulties.join(', ')}`);
+                            continue;
+                        }
+
+                        const exists = await Question.findOne({ questionText: questionText.trim(), user: req.user.id });
+                        if (exists) {
+                            errors.push(`Row ${rowNum}: Duplicate 'questionText' already exists in the database`);
+                            continue;
+                        }
+
+                        // Handle options: either piped "options" column OR "optionA", "optionB" columns
+                        let options = [];
+                        if (row.options) {
+                            options = row.options.split('|').map(o => o.trim()).filter(Boolean);
+                        } else {
+                            const optA = row.optionA || row.option1;
+                            const optB = row.optionB || row.option2;
+                            const optC = row.optionC || row.option3;
+                            const optD = row.optionD || row.option4;
+                            if (optA) options.push(optA.trim());
+                            if (optB) options.push(optB.trim());
+                            if (optC) options.push(optC.trim());
+                            if (optD) options.push(optD.trim());
+                        }
+                        
+                        if (type === 'MCQ' && options.length < 2) {
+                            errors.push(`Row ${rowNum}: MCQ requires at least 2 options`);
+                            continue;
+                        }
+
+                        // Map A,B,C,D to actual option text if provided that way
+                        if (type === 'MCQ' && correctAnswer && correctAnswer.trim().length === 1 && /^[A-D]$/i.test(correctAnswer.trim())) {
+                            const index = correctAnswer.trim().toUpperCase().charCodeAt(0) - 65; // A -> 0, B -> 1
+                            if (options[index]) {
+                                correctAnswer = options[index];
+                            } else {
+                                errors.push(`Row ${rowNum}: Correct answer '${correctAnswer}' points to a missing option`);
+                                continue;
+                            }
+                        } else if (type === 'MCQ' && correctAnswer && correctAnswer.trim().length === 1 && /^[1-4]$/.test(correctAnswer.trim())) {
+                            const index = parseInt(correctAnswer.trim()) - 1; // 1 -> 0, 2 -> 1
+                            if (options[index]) {
+                                correctAnswer = options[index];
+                            } else {
+                                errors.push(`Row ${rowNum}: Correct answer '${correctAnswer}' points to a missing option`);
+                                continue;
+                            }
+                        }
+
+                        const tags = row.tags ? row.tags.split('|').map(t => t.trim()).filter(Boolean) : [];
+
+                        try {
+                            const newQ = new Question({
+                                user: req.user.id,
+                                type: type,
+                                questionText: questionText.trim(),
+                                options: options,
+                                correctAnswer: correctAnswer.trim(),
+                                subject: subject.trim(),
+                                difficulty: difficulty,
+                                topic: row.topic ? row.topic.trim() : '',
+                                marks: row.marks ? Number(row.marks) : 1,
+                                explanation: row.explanation ? row.explanation.trim() : '',
+                                tags: tags,
+                                source: 'manual'
+                            });
+
+                            await newQ.save();
+                            importedCount++;
+                        } catch (saveErr) {
+                            errors.push(`Row ${rowNum}: Database save error - ${saveErr.message}`);
+                        }
                     }
 
                     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
                     
-                    res.json({ msg: `Successfully imported ${importedCount} questions` });
+                    if (errors.length > 0) {
+                        res.status(207).json({ 
+                            msg: `Imported ${importedCount} questions, but found ${errors.length} errors. Check console or network tab for details.`, 
+                            errors,
+                            importedCount
+                        });
+                        console.warn("CSV Import Errors:", errors);
+                    } else {
+                        res.json({ msg: `Successfully imported ${importedCount} questions`, importedCount });
+                    }
                 } catch (err) {
                     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
                     console.error("Bulk import processing error:", err);
-                    res.status(500).json({ msg: "Error processing CSV data" });
+                    res.status(500).json({ msg: "Error processing CSV data", error: err.message });
                 }
             })
             .on('error', (error) => {

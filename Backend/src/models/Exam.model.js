@@ -6,6 +6,11 @@ const ExamSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    examMode: {
+        type: String,
+        enum: ['Single Subject', 'Multi Subject'],
+        default: 'Single Subject'
+    },
     examTitle: {
         type: String,
         required: true

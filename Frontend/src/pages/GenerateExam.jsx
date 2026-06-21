@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 const GenerateExam = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
+    examMode: 'Single Subject',
     examTitle: 'Advanced Assessment',
     description: '',
     institutionType: 'College',
@@ -27,6 +28,7 @@ const GenerateExam = () => {
 
   const [newSection, setNewSection] = useState({
       sectionName: '',
+      subject: '', // Added for Multi Subject
       questionCount: '',
       marksPerQuestion: '',
       duration: '',
@@ -70,6 +72,7 @@ const GenerateExam = () => {
               const examRes = await api.get(`/exams/${editId}`);
               const exam = examRes.data;
               setFormData({
+                  examMode: exam.examMode || 'Single Subject',
                   examTitle: exam.examTitle,
                   description: exam.description || '',
                   institutionName: exam.collegeName || exam.institutionName || '',
@@ -128,7 +131,12 @@ const GenerateExam = () => {
      let hasDef = false;
 
      formData.blueprint.forEach(sec => {
-         let filtered = subjectQs.filter(q => q.type === sec.type);
+         // Determine which subject to filter by
+         const targetSubject = formData.examMode === 'Multi Subject' ? (sec.subject || sec.sectionName) : formData.subject;
+         const normalizedTarget = targetSubject.trim().toLowerCase();
+         const targetQs = allQuestions.filter(q => q.subject.toLowerCase() === normalizedTarget && q.status !== 'draft');
+
+         let filtered = targetQs.filter(q => q.type === sec.type);
          if (sec.difficulty && sec.difficulty !== 'Mixed' && sec.difficulty !== 'All') {
              filtered = filtered.filter(q => q.difficulty === sec.difficulty);
          }
@@ -154,14 +162,17 @@ const GenerateExam = () => {
      setDeficits(curDeficits);
      setHasDeficit(hasDef);
      setPreviewQuestions(groupedPreview);
-  }, [formData.subject, formData.blueprint, allQuestions]);
+  }, [formData.subject, formData.examMode, formData.blueprint, allQuestions]);
 
   const handleAddSection = () => {
       if (!newSection.sectionName || !newSection.questionCount || !newSection.marksPerQuestion) {
           toast.error("Please fill Name, Question Count, and Marks"); return;
       }
+      if (formData.examMode === 'Multi Subject' && !newSection.subject) {
+          toast.error("Please select a Subject for this section in Multi-Subject mode"); return;
+      }
       setFormData({ ...formData, blueprint: [...formData.blueprint, {...newSection}] });
-      setNewSection({ sectionName: '', questionCount: '', marksPerQuestion: '', duration: '', topics: '', difficulty: 'Mixed', type: 'MCQ' });
+      setNewSection({ sectionName: '', subject: '', questionCount: '', marksPerQuestion: '', duration: '', topics: '', difficulty: 'Mixed', type: 'MCQ' });
   };
 
   const handleDeleteSection = (index) => {
@@ -244,8 +255,8 @@ const GenerateExam = () => {
           let newlyGenerated = [];
           for (const [secName, defInfo] of Object.entries(deficits)) {
               const reqData = {
-                  subject: formData.subject,
-                  topic: defInfo.topics || (formData.subject + ' General Topics'),
+                  subject: formData.examMode === 'Multi Subject' ? (defInfo.subject || defInfo.sectionName) : formData.subject,
+                  topic: defInfo.topics || ((formData.examMode === 'Multi Subject' ? (defInfo.subject || defInfo.sectionName) : formData.subject) + ' General Topics'),
                   difficulty: defInfo.difficulty === 'Mixed' ? 'Medium' : defInfo.difficulty,
                   type: defInfo.type,
                   count: defInfo.missing
@@ -358,6 +369,7 @@ const GenerateExam = () => {
                                     if(tmpl) {
                                         setFormData({
                                             ...formData,
+                                            examMode: tmpl.examMode || 'Single Subject',
                                             subject: tmpl.subject,
                                             blueprint: tmpl.blueprint || [],
                                             duration: tmpl.duration || 180
@@ -371,22 +383,37 @@ const GenerateExam = () => {
                                 </select>
                             )}
                         </div>
+
+                        {/* Exam Mode Selector */}
+                        <div className="mb-6 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl flex">
+                            <button type="button" onClick={() => setFormData({...formData, examMode: 'Single Subject'})} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${formData.examMode === 'Single Subject' ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                                Single Subject Exam
+                            </button>
+                            <button type="button" onClick={() => setFormData({...formData, examMode: 'Multi Subject'})} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${formData.examMode === 'Multi Subject' ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                                Multi Subject Exam
+                            </button>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
-                            <div className="relative">
-                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Subject</label>
-                                <input 
-                                    type="text" required list="subject-suggestions" placeholder="Enter Subject Name"
-                                    value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} 
-                                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" 
-                                />
-                                <datalist id="subject-suggestions">
-                                    {subjects.map((subject, index) => <option key={index} value={subject} />)}
-                                </datalist>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Global Topic (Optional)</label>
-                                <input type="text" placeholder="e.g. Normalization" value={formData.topic} onChange={(e) => setFormData({ ...formData, topic: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
-                            </div>
+                            {formData.examMode === 'Single Subject' && (
+                                <>
+                                    <div className="relative">
+                                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Subject</label>
+                                        <input 
+                                            type="text" required list="subject-suggestions" placeholder="Enter Subject Name"
+                                            value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} 
+                                            className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" 
+                                        />
+                                        <datalist id="subject-suggestions">
+                                            {subjects.map((subject, index) => <option key={index} value={subject} />)}
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Global Topic (Optional)</label>
+                                        <input type="text" placeholder="e.g. Normalization" value={formData.topic} onChange={(e) => setFormData({ ...formData, topic: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                    </div>
+                                </>
+                            )}
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Exam Title</label>
                                 <input type="text" required value={formData.examTitle} onChange={(e) => setFormData({ ...formData, examTitle: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
@@ -426,6 +453,7 @@ const GenerateExam = () => {
                                     <th className="px-3 py-2 rounded-tl-lg">Section Name</th>
                                     <th className="px-3 py-2">Qs</th>
                                     <th className="px-3 py-2">Marks/Q</th>
+                                    {formData.examMode === 'Multi Subject' && <th className="px-3 py-2">Subject</th>}
                                     <th className="px-3 py-2">Time(m)</th>
                                     <th className="px-3 py-2">Type</th>
                                     <th className="px-3 py-2">Difficulty</th>
@@ -439,6 +467,7 @@ const GenerateExam = () => {
                                         <td className="px-3 py-3">{sec.sectionName}</td>
                                         <td className="px-3 py-3">{sec.questionCount}</td>
                                         <td className="px-3 py-3">{sec.marksPerQuestion}</td>
+                                        {formData.examMode === 'Multi Subject' && <td className="px-3 py-3 text-indigo-600 font-bold">{sec.subject}</td>}
                                         <td className="px-3 py-3">{sec.duration || '-'}</td>
                                         <td className="px-3 py-3">{sec.type}</td>
                                         <td className="px-3 py-3">{sec.difficulty}</td>
@@ -459,6 +488,19 @@ const GenerateExam = () => {
                             <label className="block text-[10px] font-bold text-gray-500 mb-1">Section Name *</label>
                             <input type="text" placeholder="e.g. Reasoning" value={newSection.sectionName} onChange={(e)=>setNewSection({...newSection, sectionName: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
                         </div>
+                        {formData.examMode === 'Multi Subject' && (
+                            <div className="col-span-2 relative">
+                                <label className="block text-[10px] font-bold text-indigo-500 mb-1">Question Bank Subject *</label>
+                                <input 
+                                    type="text" required list="section-subject-suggestions" placeholder="Map to Subject"
+                                    value={newSection.subject} onChange={(e) => setNewSection({ ...newSection, subject: e.target.value })} 
+                                    className="w-full text-xs px-3 py-2 rounded-lg border border-indigo-300 outline-none focus:border-indigo-500 bg-indigo-50/50" 
+                                />
+                                <datalist id="section-subject-suggestions">
+                                    {subjects.map((subject, index) => <option key={index} value={subject} />)}
+                                </datalist>
+                            </div>
+                        )}
                         <div>
                             <label className="block text-[10px] font-bold text-gray-500 mb-1">Questions *</label>
                             <input type="number" min="1" value={newSection.questionCount} onChange={(e)=>setNewSection({...newSection, questionCount: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
@@ -553,11 +595,11 @@ const GenerateExam = () => {
                             <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">{formData.institutionName}</h2>
                             <h3 className="text-sm font-semibold text-gray-700 mt-1 uppercase">{formData.examTitle}</h3>
                             <div className="flex justify-between items-center mt-6 text-sm font-bold text-gray-800">
-                                <span>Subject: {formData.subject}</span>
+                                <span>Subject: {formData.examMode === 'Multi Subject' ? 'Multiple Subjects' : formData.subject}</span>
                                 <span>Time: {totalCalculatedDuration || formData.duration} Mins</span>
                                 <span>Max Marks: {totalMarks}</span>
                             </div>
-                            {formData.topic && (
+                            {formData.topic && formData.examMode !== 'Multi Subject' && (
                                 <div className="text-left mt-2 text-sm font-bold text-gray-800">
                                     <span>Topic: {formData.topic}</span>
                                 </div>
@@ -571,11 +613,11 @@ const GenerateExam = () => {
                             <h4 className="text-md font-bold uppercase tracking-widest text-gray-800 bg-gray-100 inline-block px-4 py-1 rounded-full mb-4">{formData.academicSession}</h4>
                             <h3 className="text-lg font-bold text-gray-900 mb-2">{formData.examTitle}</h3>
                             <div className="flex justify-between items-center text-sm font-bold text-gray-800 mt-4 px-4 py-2 border-t border-gray-300">
-                                <span>Course: {formData.courseCode || formData.subject}</span>
+                                <span>Course: {formData.examMode === 'Multi Subject' ? 'Multiple Subjects' : (formData.courseCode || formData.subject)}</span>
                                 <span>Time Allowed: {totalCalculatedDuration || formData.duration} Mins</span>
                             </div>
                             <div className="flex justify-between items-center text-sm font-bold text-gray-800 px-4 py-2 border-b border-gray-300">
-                                <span>{formData.topic ? `Topic: ${formData.topic}` : ''}</span>
+                                <span>{(formData.topic && formData.examMode !== 'Multi Subject') ? `Topic: ${formData.topic}` : ''}</span>
                                 <span>Maximum Marks: {totalMarks}</span>
                             </div>
                         </div>
@@ -586,7 +628,11 @@ const GenerateExam = () => {
                             <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2">{formData.institutionName}</h4>
                             <h2 className="text-2xl font-black text-gray-900 leading-tight mb-2">{formData.examTitle}</h2>
                             {formData.courseCode && <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full mb-2">{formData.courseCode}</span>}
-                            {formData.topic && <div className="text-sm font-bold text-gray-800 mb-4">Topic: {formData.topic}</div>}
+                            {formData.examMode === 'Multi Subject' ? (
+                                <div className="text-sm font-bold text-gray-800 mb-4">Multiple Subjects</div>
+                            ) : formData.topic && (
+                                <div className="text-sm font-bold text-gray-800 mb-4">Topic: {formData.topic}</div>
+                            )}
                             <div className="flex justify-between items-center border-b-2 border-gray-900 pb-4 text-xs font-bold text-gray-900 uppercase tracking-wider">
                                 <span>Time: {totalCalculatedDuration || formData.duration} Minutes</span>
                                 <span>Total Marks: {totalMarks}</span>
@@ -603,9 +649,9 @@ const GenerateExam = () => {
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-y-2 text-sm font-bold text-gray-800">
-                                <div><span className="text-gray-500">SUBJECT:</span> {formData.subject}</div>
+                                <div><span className="text-gray-500">SUBJECT:</span> {formData.examMode === 'Multi Subject' ? 'Multiple Subjects' : formData.subject}</div>
                                 <div className="text-right"><span className="text-gray-500">SESSION:</span> {formData.academicSession}</div>
-                                <div><span className="text-gray-500">TOPIC:</span> {formData.topic || 'N/A'}</div>
+                                <div><span className="text-gray-500">TOPIC:</span> {formData.examMode === 'Multi Subject' ? 'N/A' : (formData.topic || 'N/A')}</div>
                                 <div className="text-right"><span className="text-gray-500">MARKS:</span> {totalMarks}</div>
                                 <div><span className="text-gray-500">TIME:</span> {totalCalculatedDuration || formData.duration} MINUTES</div>
                             </div>
@@ -624,6 +670,7 @@ const GenerateExam = () => {
                             <div className="text-center underline mb-2">EXAM TEMPLATE & SECTION BREAKDOWN</div>
                             <div className="flex justify-between border-b border-gray-300 pb-1 mb-1 text-[10px] text-gray-500 uppercase">
                                 <span className="w-1/4">Section</span>
+                                {formData.examMode === 'Multi Subject' && <span className="w-1/4">Subject</span>}
                                 <span className="w-1/6">Type</span>
                                 <span className="w-1/6">Qs</span>
                                 <span className="w-1/6">Marks</span>
@@ -632,6 +679,7 @@ const GenerateExam = () => {
                             {formData.blueprint.map((sec, i) => (
                                 <div key={i} className="flex justify-between py-1">
                                     <span className="w-1/4 truncate">{sec.sectionName}</span>
+                                    {formData.examMode === 'Multi Subject' && <span className="w-1/4 truncate text-indigo-600">{sec.subject}</span>}
                                     <span className="w-1/6">{sec.type}</span>
                                     <span className="w-1/6">{sec.questionCount}</span>
                                     <span className="w-1/6">{sec.marksPerQuestion * sec.questionCount}</span>
