@@ -35,11 +35,11 @@ const Home = () => {
             Create, manage, and generate perfect academic assessment papers with automatic marking distributions and PDF generation.
           </motion.p>
 
-          <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
-            <button onClick={handleAuth} className="px-8 py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all">
+          <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row justify-center items-stretch sm:items-center gap-4 mb-16 w-full max-w-md mx-auto sm:max-w-none">
+            <button onClick={handleAuth} className="w-full sm:w-auto px-8 py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all">
               {user ? 'Open Dashboard' : 'Get Started'}
             </button>
-            <Link to={user ? "/dashboard" : "/login"} className="px-8 py-3.5 bg-white text-gray-700 font-bold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">
+            <Link to={user ? "/dashboard" : "/login"} className="w-full sm:w-auto text-center px-8 py-3.5 bg-white text-gray-700 font-bold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all">
               {user ? 'Go to Dashboard' : 'Login to Dashboard'}
             </Link>
           </motion.div>

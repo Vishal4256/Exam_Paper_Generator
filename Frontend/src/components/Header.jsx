@@ -1,14 +1,22 @@
 import React from 'react';
-import { Search, Bell, Moon } from 'lucide-react';
+import { Search, Bell, Moon, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const Header = () => {
+const Header = ({ setIsSidebarOpen }) => {
   const { user, toggleTheme } = useAuth();
 
   return (
-    <header className="h-20 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-b border-gray-100 dark:border-gray-700 flex items-center justify-between px-8 ml-64 sticky top-0 z-10">
-      <div className="flex-1">
-        <div className="relative hidden md:block max-w-md">
+    <header className="h-20 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-b border-gray-100 dark:border-gray-700 flex items-center justify-between px-4 sm:px-6 md:px-8 md:ml-64 sticky top-0 z-20 transition-all duration-300">
+      <div className="flex items-center flex-1 gap-4">
+        {/* Hamburger Menu (Mobile Only) */}
+        <button 
+          onClick={() => setIsSidebarOpen(true)}
+          className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+
+        <div className="relative hidden md:block max-w-md w-full">
           <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"

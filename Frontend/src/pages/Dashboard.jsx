@@ -77,11 +77,11 @@ const Dashboard = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">Dashboard</h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm">Welcome back, {user?.name}</p>
         </div>
-        <div className="flex items-center gap-3">
-            <Link to="/questions" className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <Link to="/questions" className="w-full sm:w-auto justify-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-3 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Add Question
             </Link>
-            <Link to="/generate" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2">
+            <Link to="/generate" className="w-full sm:w-auto justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2">
                 <Sparkles className="w-4 h-4" /> Generate New Exam
             </Link>
         </div>

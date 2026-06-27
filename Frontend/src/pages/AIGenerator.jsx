@@ -140,7 +140,7 @@ const AIGenerator = () => {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                                     <BarChart className="w-3 h-3" /> Difficulty
@@ -305,7 +305,7 @@ const AIGenerator = () => {
                                                         )}
                                                     </div>
                                                     
-                                                    <div className="flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
                                                         {editingIndex === idx ? (
                                                             <button onClick={() => setEditingIndex(null)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-3 py-1.5 rounded-lg transition-colors">Done</button>
                                                         ) : (
