@@ -385,11 +385,11 @@ const GenerateExam = () => {
                         </div>
 
                         {/* Exam Mode Selector */}
-                        <div className="mb-6 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl flex">
-                            <button type="button" onClick={() => setFormData({...formData, examMode: 'Single Subject'})} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${formData.examMode === 'Single Subject' ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                        <div className="mb-6 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl flex flex-col sm:flex-row">
+                            <button type="button" onClick={() => setFormData({...formData, examMode: 'Single Subject'})} className={`flex-1 py-2 px-2 text-sm font-bold rounded-lg transition-all ${formData.examMode === 'Single Subject' ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                                 Single Subject Exam
                             </button>
-                            <button type="button" onClick={() => setFormData({...formData, examMode: 'Multi Subject'})} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${formData.examMode === 'Multi Subject' ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                            <button type="button" onClick={() => setFormData({...formData, examMode: 'Multi Subject'})} className={`flex-1 py-2 px-2 text-sm font-bold rounded-lg transition-all ${formData.examMode === 'Multi Subject' ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                                 Multi Subject Exam
                             </button>
                         </div>
@@ -483,7 +483,7 @@ const GenerateExam = () => {
                     </div>
 
                     {/* Add Section Form */}
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         <div className="col-span-2">
                             <label className="block text-[10px] font-bold text-gray-500 mb-1">Section Name *</label>
                             <input type="text" placeholder="e.g. Reasoning" value={newSection.sectionName} onChange={(e)=>setNewSection({...newSection, sectionName: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
@@ -560,14 +560,14 @@ const GenerateExam = () => {
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center gap-4">
-                    <button onClick={handleReset} type="button" className="flex-1 bg-white border border-gray-200 text-gray-600 font-bold py-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                    <button onClick={handleReset} type="button" className="w-full sm:flex-1 bg-white border border-gray-200 text-gray-600 font-bold py-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
                         <RotateCcw className="w-4 h-4" /> Reset Settings
                     </button>
-                    <button onClick={handleSaveTemplate} type="button" className="flex-1 bg-white border border-gray-200 text-gray-600 font-bold py-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <button onClick={handleSaveTemplate} type="button" className="w-full sm:flex-1 bg-white border border-gray-200 text-gray-600 font-bold py-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
                         <Save className="w-4 h-4" /> Save Template
                     </button>
-                    <button type="submit" disabled={loading || hasDeficit || formData.blueprint.length === 0} className="flex-[2] bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors shadow-md flex items-center justify-center gap-2">
+                    <button type="submit" disabled={loading || hasDeficit || formData.blueprint.length === 0} className="w-full sm:flex-[2] bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors shadow-md flex items-center justify-center gap-2">
                         {loading ? 'Generating...' : <><Sparkles className="w-5 h-5" /> Generate Exam Paper</>}
                     </button>
                 </div>

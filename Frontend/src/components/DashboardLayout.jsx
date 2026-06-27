@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 
 const DashboardLayout = () => {
   const { user, loading } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   if (loading) {
     return (
@@ -20,15 +21,14 @@ const DashboardLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex text-gray-900 dark:text-gray-100">
-      {/* Sidebar is fixed, so it doesn't take up space in the flex layout normally, we add margin to the main content */}
-      <Sidebar />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex text-gray-900 dark:text-gray-100 overflow-x-hidden">
+      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
       
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        <Header setIsSidebarOpen={setIsSidebarOpen} />
         
         {/* Main Content Area */}
-        <main className="flex-1 p-8 ml-64 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-80px)] text-gray-900 dark:text-gray-100">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 md:ml-64 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-80px)] text-gray-900 dark:text-gray-100 overflow-x-hidden w-full">
           <Outlet />
         </main>
       </div>

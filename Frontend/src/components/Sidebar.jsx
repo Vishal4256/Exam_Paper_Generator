@@ -3,7 +3,7 @@ import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Database, FilePlus2, Files, Settings, LogOut, GraduationCap, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const Sidebar = () => {
+const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -22,7 +22,16 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="w-64 h-screen bg-gray-50/50 dark:bg-gray-800/50 border-r border-gray-100 dark:border-gray-700 flex flex-col fixed left-0 top-0">
+    <>
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <div className={`w-64 h-screen bg-gray-50/50 dark:bg-gray-800/50 border-r border-gray-100 dark:border-gray-700 flex flex-col fixed left-0 top-0 z-40 transform transition-transform duration-300 ease-in-out md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* Brand */}
       <Link to="/" className="h-20 flex items-center px-6 hover:bg-gray-100/50 transition-colors">
         <div className="flex items-center gap-3 text-indigo-600">
@@ -42,6 +51,7 @@ const Sidebar = () => {
           <NavLink
             key={item.name}
             to={item.path}
+            onClick={() => setIsSidebarOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                 isActive
@@ -66,7 +76,7 @@ const Sidebar = () => {
           <span className="text-sm">Logout</span>
         </button>
       </div>
-    </div>
+    </>
   );
 };
 

@@ -96,14 +96,14 @@ const ViewExams = () => {
                 />
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                 {selectedExams.length > 0 && (
-                    <button onClick={handleBulkDelete} className="bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm">
+                    <button onClick={handleBulkDelete} className="w-full sm:w-auto justify-center bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm">
                         <Trash2 className="w-4 h-4" />
                         Delete Selected ({selectedExams.length})
                     </button>
                 )}
-                <button className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm">
+                <button className="w-full sm:w-auto justify-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-sm">
                     <Filter className="w-4 h-4" />
                     Filter
                 </button>
