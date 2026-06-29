@@ -76,6 +76,7 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
           <span className="text-sm">Logout</span>
         </button>
       </div>
+      </div>
     </>
   );
 };

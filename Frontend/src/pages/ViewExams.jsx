@@ -127,7 +127,7 @@ const ViewExams = () => {
                 </div>
             ) : (
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full min-w-[900px] text-left border-collapse">
                         <thead className="bg-gray-50/80 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                             <tr>
                                 <th className="px-6 py-4 text-left w-12">

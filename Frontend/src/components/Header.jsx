@@ -6,7 +6,7 @@ const Header = ({ setIsSidebarOpen }) => {
   const { user, toggleTheme } = useAuth();
 
   return (
-    <header className="h-20 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-b border-gray-100 dark:border-gray-700 flex items-center justify-between px-4 sm:px-6 md:px-8 md:ml-64 sticky top-0 z-20 transition-all duration-300">
+    <header className="h-20 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-b border-gray-100 dark:border-gray-700 flex items-center justify-between px-4 sm:px-6 md:px-8 sticky top-0 z-20 transition-all duration-300">
       <div className="flex items-center flex-1 gap-4">
         {/* Hamburger Menu (Mobile Only) */}
         <button 

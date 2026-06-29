@@ -369,8 +369,8 @@ const Questions = () => {
                       className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm text-gray-900 dark:text-white"
                   />
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4 w-full sm:w-auto">
                       <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600">
                       <Filter className="w-4 h-4 text-gray-400 dark:text-gray-300" />
                       <span className="text-xs font-bold text-gray-600 dark:text-gray-200">Filters</span>
@@ -413,7 +413,7 @@ const Questions = () => {
 
           {/* Data Table */}
           <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full min-w-[900px] text-left border-collapse">
                   <thead>
                       <tr>
                           <th className="py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-1/2">Question Content</th>

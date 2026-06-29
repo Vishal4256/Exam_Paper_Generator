@@ -24,11 +24,11 @@ const DashboardLayout = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex text-gray-900 dark:text-gray-100 overflow-x-hidden">
       <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
       
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen md:pl-64 w-full">
         <Header setIsSidebarOpen={setIsSidebarOpen} />
         
         {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 md:ml-64 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-80px)] text-gray-900 dark:text-gray-100 overflow-x-hidden w-full">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-80px)] text-gray-900 dark:text-gray-100 overflow-x-hidden w-full">
           <Outlet />
         </main>
       </div>
