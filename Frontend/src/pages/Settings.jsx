@@ -103,12 +103,12 @@ const Settings = () => {
                 </span>
             )}
           </div>
-          <form onSubmit={handleProfileUpdate} className="space-y-4 max-w-lg">
-            <div className="flex gap-4 items-center mb-6">
+          <form onSubmit={handleProfileUpdate} className="space-y-4 max-w-lg w-full">
+            <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start mb-6 w-full">
                 <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xl overflow-hidden shadow-inner">
                     <img src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=e0e7ff&color=4f46e5`} alt="Avatar" className="w-full h-full object-cover" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 w-full">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Avatar URL</label>
                     <input type="url" placeholder="https://example.com/avatar.png" value={profileData.profilePicture || ''} onChange={(e) => setProfileData({...profileData, profilePicture: e.target.value})} className="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border text-sm" />
                 </div>

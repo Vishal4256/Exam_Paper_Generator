@@ -298,7 +298,7 @@ const GenerateExam = () => {
 
                     {/* Institution Settings */}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg"><Building2 className="w-5 h-5" /></div>
                                 <h3 className="font-bold text-gray-900 dark:text-white">Institution Branding</h3>
@@ -307,10 +307,10 @@ const GenerateExam = () => {
                                 Save As Default
                             </button>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Institution Type</label>
-                                <select value={formData.institutionType} onChange={(e) => setFormData({ ...formData, institutionType: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20">
+                                <select value={formData.institutionType} onChange={(e) => setFormData({ ...formData, institutionType: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500">
                                     <option value="School">School</option>
                                     <option value="College">College</option>
                                     <option value="University">University</option>
@@ -321,27 +321,27 @@ const GenerateExam = () => {
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Institution Name</label>
-                                <input type="text" value={formData.institutionName} onChange={(e) => setFormData({ ...formData, institutionName: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                <input type="text" value={formData.institutionName} onChange={(e) => setFormData({ ...formData, institutionName: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Department</label>
-                                <input type="text" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                <input type="text" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Academic Session</label>
-                                <input type="text" value={formData.academicSession} onChange={(e) => setFormData({ ...formData, academicSession: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                <input type="text" value={formData.academicSession} onChange={(e) => setFormData({ ...formData, academicSession: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Course Code</label>
-                                <input type="text" value={formData.courseCode} onChange={(e) => setFormData({ ...formData, courseCode: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                <input type="text" value={formData.courseCode} onChange={(e) => setFormData({ ...formData, courseCode: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Logo URL</label>
-                                <input type="url" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                <input type="url" value={formData.logo} onChange={(e) => setFormData({ ...formData, logo: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" />
                             </div>
                             <div className="md:col-span-2">
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Header Style</label>
-                                <select value={formData.examHeaderStyle} onChange={(e) => setFormData({ ...formData, examHeaderStyle: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20">
+                                <select value={formData.examHeaderStyle} onChange={(e) => setFormData({ ...formData, examHeaderStyle: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500">
                                     <option value="Style 1">Style 1: Simple School Format</option>
                                     <option value="Style 2">Style 2: University Format</option>
                                     <option value="Style 3">Style 3: Modern Professional</option>
@@ -350,14 +350,14 @@ const GenerateExam = () => {
                             </div>
                             <div className="md:col-span-2">
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">General Instructions</label>
-                                <textarea rows="3" value={formData.instructions} onChange={(e) => setFormData({ ...formData, instructions: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20"></textarea>
+                                <textarea rows="3" value={formData.instructions} onChange={(e) => setFormData({ ...formData, instructions: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500"></textarea>
                             </div>
                         </div>
                     </div>
 
                     {/* Subject & Curriculum */}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg"><BookOpen className="w-5 h-5" /></div>
                                 <h3 className="font-bold text-gray-900 dark:text-white">Subject & Curriculum</h3>
@@ -394,7 +394,7 @@ const GenerateExam = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
                             {formData.examMode === 'Single Subject' && (
                                 <>
                                     <div className="relative">
@@ -402,7 +402,7 @@ const GenerateExam = () => {
                                         <input 
                                             type="text" required list="subject-suggestions" placeholder="Enter Subject Name"
                                             value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} 
-                                            className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" 
+                                            className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" 
                                         />
                                         <datalist id="subject-suggestions">
                                             {subjects.map((subject, index) => <option key={index} value={subject} />)}
@@ -410,45 +410,45 @@ const GenerateExam = () => {
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Global Topic (Optional)</label>
-                                        <input type="text" placeholder="e.g. Normalization" value={formData.topic} onChange={(e) => setFormData({ ...formData, topic: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                        <input type="text" placeholder="e.g. Normalization" value={formData.topic} onChange={(e) => setFormData({ ...formData, topic: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" />
                                     </div>
                                 </>
                             )}
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Exam Title</label>
-                                <input type="text" required value={formData.examTitle} onChange={(e) => setFormData({ ...formData, examTitle: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                <input type="text" required value={formData.examTitle} onChange={(e) => setFormData({ ...formData, examTitle: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Exam Date</label>
-                                <input type="date" value={formData.examDate} onChange={(e) => setFormData({ ...formData, examDate: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20" />
+                                <input type="date" value={formData.examDate} onChange={(e) => setFormData({ ...formData, examDate: e.target.value })} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Total Duration (Mins)</label>
-                                <input type="number" value={totalCalculatedDuration || formData.duration} onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm font-bold text-gray-700" disabled={totalCalculatedDuration > 0} />
+                                <input type="number" value={totalCalculatedDuration || formData.duration} onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })} className="w-full bg-white disabled:bg-gray-50 dark:bg-gray-800 dark:disabled:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 placeholder-gray-400 dark:placeholder-gray-500" disabled={totalCalculatedDuration > 0} />
                             </div>
                         </div>
                     </div>
 
                 {/* Exam Template & Section Breakdown */}
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg"><Target className="w-5 h-5" /></div>
                             <h3 className="font-bold text-gray-900 dark:text-white">Exam Template & Section Breakdown</h3>
                         </div>
                         <div className="flex gap-2">
-                            <div className="bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 text-xs">
-                                <span className="font-bold text-gray-500 mr-1">Qs:</span><span className="font-black text-gray-800">{totalQuestions}</span>
+                            <div className="bg-gray-50 dark:bg-gray-700/50 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-xs">
+                                <span className="font-bold text-gray-500 dark:text-gray-400 mr-1">Qs:</span><span className="font-black text-gray-800 dark:text-gray-200">{totalQuestions}</span>
                             </div>
-                            <div className="bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 text-xs">
-                                <span className="font-bold text-indigo-500 mr-1">Marks:</span><span className="font-black text-indigo-700">{totalMarks}</span>
+                            <div className="bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-800 text-xs">
+                                <span className="font-bold text-indigo-500 dark:text-indigo-400 mr-1">Marks:</span><span className="font-black text-indigo-700 dark:text-indigo-300">{totalMarks}</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="overflow-x-auto mb-6">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-500">
+                        <table className="w-full min-w-[900px] text-left border-collapse">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50 text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
                                 <tr>
                                     <th className="px-3 py-2 rounded-tl-lg">Section Name</th>
                                     <th className="px-3 py-2">Qs</th>
@@ -463,7 +463,7 @@ const GenerateExam = () => {
                             </thead>
                             <tbody className="text-xs font-semibold text-gray-700">
                                 {formData.blueprint.map((sec, idx) => (
-                                    <tr key={idx} className="border-b border-gray-100">
+                                    <tr key={idx} className="border-b border-gray-100 dark:border-gray-700">
                                         <td className="px-3 py-3">{sec.sectionName}</td>
                                         <td className="px-3 py-3">{sec.questionCount}</td>
                                         <td className="px-3 py-3">{sec.marksPerQuestion}</td>
@@ -483,10 +483,10 @@ const GenerateExam = () => {
                     </div>
 
                     {/* Add Section Form */}
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-200 dark:border-gray-700 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         <div className="col-span-2">
-                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Section Name *</label>
-                            <input type="text" placeholder="e.g. Reasoning" value={newSection.sectionName} onChange={(e)=>setNewSection({...newSection, sectionName: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1">Section Name *</label>
+                            <input type="text" placeholder="e.g. Reasoning" value={newSection.sectionName} onChange={(e)=>setNewSection({...newSection, sectionName: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 outline-none focus:border-indigo-500 dark:bg-gray-800 dark:text-white" />
                         </div>
                         {formData.examMode === 'Multi Subject' && (
                             <div className="col-span-2 relative">
@@ -494,7 +494,7 @@ const GenerateExam = () => {
                                 <input 
                                     type="text" required list="section-subject-suggestions" placeholder="Map to Subject"
                                     value={newSection.subject} onChange={(e) => setNewSection({ ...newSection, subject: e.target.value })} 
-                                    className="w-full text-xs px-3 py-2 rounded-lg border border-indigo-300 outline-none focus:border-indigo-500 bg-indigo-50/50" 
+                                    className="w-full text-xs px-3 py-2 rounded-lg border border-indigo-300 dark:border-indigo-500/30 outline-none focus:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20 dark:text-white" 
                                 />
                                 <datalist id="section-subject-suggestions">
                                     {subjects.map((subject, index) => <option key={index} value={subject} />)}
@@ -502,16 +502,16 @@ const GenerateExam = () => {
                             </div>
                         )}
                         <div>
-                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Questions *</label>
-                            <input type="number" min="1" value={newSection.questionCount} onChange={(e)=>setNewSection({...newSection, questionCount: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1">Questions *</label>
+                            <input type="number" min="1" value={newSection.questionCount} onChange={(e)=>setNewSection({...newSection, questionCount: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 outline-none focus:border-indigo-500 dark:bg-gray-800 dark:text-white" />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Marks/Q *</label>
-                            <input type="number" min="1" value={newSection.marksPerQuestion} onChange={(e)=>setNewSection({...newSection, marksPerQuestion: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1">Marks/Q *</label>
+                            <input type="number" min="1" value={newSection.marksPerQuestion} onChange={(e)=>setNewSection({...newSection, marksPerQuestion: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 outline-none focus:border-indigo-500 dark:bg-gray-800 dark:text-white" />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Q-Type</label>
-                            <select value={newSection.type} onChange={(e)=>setNewSection({...newSection, type: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500">
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1">Q-Type</label>
+                            <select value={newSection.type} onChange={(e)=>setNewSection({...newSection, type: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 outline-none focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
                                 <option value="MCQ">MCQ</option>
                                 <option value="Short Answer">Short Answer</option>
                                 <option value="Long Answer">Long Answer</option>
@@ -520,8 +520,8 @@ const GenerateExam = () => {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Difficulty</label>
-                            <select value={newSection.difficulty} onChange={(e)=>setNewSection({...newSection, difficulty: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500">
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1">Difficulty</label>
+                            <select value={newSection.difficulty} onChange={(e)=>setNewSection({...newSection, difficulty: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 outline-none focus:border-indigo-500 dark:bg-gray-800 dark:text-white">
                                 <option value="Mixed">Mixed</option>
                                 <option value="Easy">Easy</option>
                                 <option value="Medium">Medium</option>
@@ -529,15 +529,15 @@ const GenerateExam = () => {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Time (mins)</label>
-                            <input type="number" value={newSection.duration} onChange={(e)=>setNewSection({...newSection, duration: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1">Time (mins)</label>
+                            <input type="number" value={newSection.duration} onChange={(e)=>setNewSection({...newSection, duration: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 outline-none focus:border-indigo-500 dark:bg-gray-800 dark:text-white" />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-gray-500 mb-1">Topics (comma sep)</label>
-                            <input type="text" placeholder="Arrays, Maps..." value={newSection.topics} onChange={(e)=>setNewSection({...newSection, topics: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 outline-none focus:border-indigo-500" />
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1">Topics (comma sep)</label>
+                            <input type="text" placeholder="Arrays, Maps..." value={newSection.topics} onChange={(e)=>setNewSection({...newSection, topics: e.target.value})} className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 outline-none focus:border-indigo-500 dark:bg-gray-800 dark:text-white" />
                         </div>
                         <div className="col-span-2 md:col-span-4 mt-2">
-                            <button type="button" onClick={handleAddSection} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-2"><Plus className="w-4 h-4"/> Add Section</button>
+                            <button type="button" onClick={handleAddSection} className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold text-xs py-2 rounded-lg transition-colors flex items-center justify-center gap-2"><Plus className="w-4 h-4"/> Add Section</button>
                         </div>
                     </div>
                 </div>
@@ -561,13 +561,13 @@ const GenerateExam = () => {
 
                 {/* Actions */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-                    <button onClick={handleReset} type="button" className="w-full sm:flex-1 bg-white border border-gray-200 text-gray-600 font-bold py-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <button onClick={handleReset} type="button" className="w-full sm:flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold py-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
                         <RotateCcw className="w-4 h-4" /> Reset Settings
                     </button>
-                    <button onClick={handleSaveTemplate} type="button" className="w-full sm:flex-1 bg-white border border-gray-200 text-gray-600 font-bold py-4 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <button onClick={handleSaveTemplate} type="button" className="w-full sm:flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 font-bold py-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
                         <Save className="w-4 h-4" /> Save Template
                     </button>
-                    <button type="submit" disabled={loading || hasDeficit || formData.blueprint.length === 0} className="w-full sm:flex-[2] bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors shadow-md flex items-center justify-center gap-2">
+                    <button type="submit" disabled={loading || hasDeficit || formData.blueprint.length === 0} className="w-full sm:flex-[2] bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 disabled:bg-indigo-300 dark:disabled:bg-indigo-900 dark:disabled:text-indigo-300 transition-colors shadow-md flex items-center justify-center gap-2">
                         {loading ? 'Generating...' : <><Sparkles className="w-5 h-5" /> Generate Exam Paper</>}
                     </button>
                 </div>
