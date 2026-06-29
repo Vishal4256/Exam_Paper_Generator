@@ -23,6 +23,8 @@ import ViewExams from './pages/ViewExams';
 import ExamDetail from './pages/ExamDetail';
 import Settings from './pages/Settings';
 import AIGenerator from './pages/AIGenerator';
+import AIImport from './pages/AIImport';
+import HistoryDashboard from './pages/HistoryDashboard';
 import Pricing from './pages/Pricing';
 import Security from './pages/Security';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -95,6 +97,14 @@ function App() {
         {
           path: '/ai-generator',
           element: <AIGenerator />,
+        },
+        {
+          path: '/ai-import',
+          element: <AIImport />,
+        },
+        {
+          path: '/history',
+          element: <HistoryDashboard />,
         },
         {
           path: '/exams',

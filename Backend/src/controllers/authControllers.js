@@ -171,6 +171,11 @@ const resetPassword = async (req, res) => {
             return res.status(400).json({ msg: "Password reset token is invalid or has expired." });
         }
 
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (isMatch) {
+            return res.status(400).json({ msg: "Your new password cannot be the same as your previous password." });
+        }
+
         // Hash the new password
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
@@ -230,6 +235,11 @@ const updatePassword = async (req, res) => {
 
         const isMatch = await bcrypt.compare(currentPassword, user.password);
         if (!isMatch) return res.status(400).json({ msg: "Incorrect current password" });
+
+        const isSame = await bcrypt.compare(newPassword, user.password);
+        if (isSame) {
+            return res.status(400).json({ msg: "Your new password cannot be the same as your previous password." });
+        }
 
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(newPassword, salt);
