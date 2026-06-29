@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Database, FilePlus2, Files, Settings, LogOut, GraduationCap, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Database, FilePlus2, Files, Settings, LogOut, GraduationCap, Sparkles, FileUp, History } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
@@ -11,6 +11,8 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
     { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { name: 'Question Bank', icon: Database, path: '/questions' },
     { name: 'AI Generator', icon: Sparkles, path: '/ai-generator' },
+    { name: 'AI Import Center', icon: FileUp, path: '/ai-import' },
+    { name: 'History', icon: History, path: '/history' },
     { name: 'Generate Exam', icon: FilePlus2, path: '/generate' },
     { name: 'Exam Papers', icon: Files, path: '/exams' },
     { name: 'Settings', icon: Settings, path: '/settings' },

@@ -82,6 +82,11 @@ const QuestionSchema = new mongoose.Schema({
         type: String,
         enum: ['active', 'draft'],
         default: 'active'
+    },
+    bloomLevel: {
+        type: String,
+        enum: ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'],
+        default: 'Remember'
     }
 });
 

@@ -14,6 +14,10 @@ import templateRoutes from './src/routes/template.route.js';
 import settingsRoutes from './src/routes/settings.route.js';
 import userRoutes from './src/routes/user.route.js';
 import contactRoutes from './src/routes/contact.route.js';
+import importRoutes from './src/routes/importRoutes.js';
+import jobRoutes from './src/routes/jobRoutes.js';
+import draftRoutes from './src/routes/draftRoutes.js';
+import historyRoutes from './src/routes/historyRoutes.js';
 
 dotenv.config();
 
@@ -138,6 +142,7 @@ app.get('/api/debug/email', async (req, res) => {
   }
 });
 app.use('/api/auth', authRoutes);
+app.use('/api/import', importRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/ai', aiRoutes);
@@ -145,6 +150,9 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/drafts', draftRoutes);
+app.use('/api/history', historyRoutes);
 
 // ======================
 // 404 Handler

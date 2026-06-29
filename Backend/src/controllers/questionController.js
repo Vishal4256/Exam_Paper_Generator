@@ -105,7 +105,7 @@ const updateQuestion = async (req, res) => {
 
 const getQuestions = async (req, res) => {
     try {
-        const { subject, difficulty, type, search, page = 1, limit = 50 } = req.query;
+        const { subject, difficulty, type, search, sort, page = 1, limit = 50 } = req.query;
         let query = { user: req.user.id };
         
         if (subject && subject !== 'All') query.subject = subject;
@@ -115,10 +115,23 @@ const getQuestions = async (req, res) => {
             query.questionText = { $regex: search, $options: 'i' };
         }
         
+        let sortOption = { createdAt: -1 };
+        switch(sort) {
+            case 'oldest': sortOption = { createdAt: 1 }; break;
+            case 'subject_asc': sortOption = { subject: 1 }; break;
+            case 'subject_desc': sortOption = { subject: -1 }; break;
+            case 'difficulty_asc': sortOption = { difficulty: 1 }; break;
+            case 'difficulty_desc': sortOption = { difficulty: -1 }; break;
+            case 'type_asc': sortOption = { type: 1 }; break;
+            case 'type_desc': sortOption = { type: -1 }; break;
+            case 'newest':
+            default: sortOption = { createdAt: -1 }; break;
+        }
+        
         const skip = (page - 1) * limit;
         const total = await Question.countDocuments(query);
         const questions = await Question.find(query)
-            .sort({ createdAt: -1 })
+            .sort(sortOption)
             .skip(skip)
             .limit(Number(limit));
             
@@ -156,6 +169,61 @@ const deleteQuestion = async (req, res) => {
         await Question.findByIdAndDelete(req.params.id);
         res.json({ msg: "Question deleted successfully" });
     } catch (err) {
+        res.status(500).json({ msg: "Server Error", error: err.message });
+    }
+};
+
+const bulkDeleteQuestions = async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ msg: "Invalid request. Please provide an array of IDs." });
+        }
+        
+        // Find all images first to delete from filesystem
+        const questions = await Question.find({ _id: { $in: ids }, user: req.user.id });
+        for (const q of questions) {
+            if (q.image) {
+                const imagePath = path.join(__dirname, '../../', q.image);
+                if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+            }
+        }
+
+        const result = await Question.deleteMany({ _id: { $in: ids }, user: req.user.id });
+        res.json({ msg: `Successfully deleted ${result.deletedCount} questions.` });
+    } catch (err) {
+        console.error('Bulk delete error:', err);
+        res.status(500).json({ msg: "Server Error", error: err.message });
+    }
+};
+
+const bulkUpdateQuestions = async (req, res) => {
+    try {
+        const { ids, updateData } = req.body;
+        if (!ids || !Array.isArray(ids) || ids.length === 0 || !updateData) {
+            return res.status(400).json({ msg: "Invalid request. Provide ids array and updateData object." });
+        }
+
+        const allowedUpdates = ['subject', 'difficulty', 'bloomLevel'];
+        const sanitizedUpdate = {};
+        for (let key of allowedUpdates) {
+            if (updateData[key] !== undefined) {
+                sanitizedUpdate[key] = updateData[key];
+            }
+        }
+
+        if (Object.keys(sanitizedUpdate).length === 0) {
+            return res.status(400).json({ msg: "No valid fields to update." });
+        }
+
+        const result = await Question.updateMany(
+            { _id: { $in: ids }, user: req.user.id },
+            { $set: sanitizedUpdate }
+        );
+        
+        res.json({ msg: `Successfully updated ${result.modifiedCount} questions.` });
+    } catch (err) {
+        console.error('Bulk update error:', err);
         res.status(500).json({ msg: "Server Error", error: err.message });
     }
 };
@@ -357,4 +425,4 @@ const bulkAddQuestions = async (req, res) => {
     }
 };
 
-export { addQuestion, updateQuestion, getQuestions, getQuestion, deleteQuestion, bulkImportQuestions, bulkAddQuestions };
+export { addQuestion, updateQuestion, getQuestions, getQuestion, deleteQuestion, bulkImportQuestions, bulkAddQuestions, bulkDeleteQuestions, bulkUpdateQuestions };
