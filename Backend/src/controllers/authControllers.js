@@ -2,7 +2,8 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.model.js';
-import { sendPasswordResetLink } from '../utils/emailService.js';
+import PendingUser from '../models/PendingUser.model.js';
+import { sendPasswordResetLink, sendOTPEmail } from '../utils/emailService.js';
 
 // 1. Register User
 const register = async (req, res) => {
@@ -14,21 +15,91 @@ const register = async (req, res) => {
             return res.status(400).json({ success: false, msg: "User already exists", message: "User already exists" });
         }
         
+        // Generate a 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // Send OTP email before creating user/pending user
+        await sendOTPEmail(email, otp);
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        const newUser = new User({
+        // Delete any existing pending user for this email to replace it
+        await PendingUser.deleteMany({ email });
+
+        const pendingUser = new PendingUser({
             name,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            otp,
+            otpExpires: Date.now() + 10 * 60 * 1000 // 10 minutes
         });
-        await newUser.save();
+        await pendingUser.save();
         
-        res.status(201).json({ success: true, message: "Account created successfully.", msg: "Account created successfully." });
+        res.status(200).json({ success: true, message: "OTP sent to email. Please verify.", email });
 
     } catch (err) {
         console.error('Registration error:', err);
+        // Do not create pending user if email fails
+        res.status(500).json({ success: false, msg: "Registration Failed: " + err.message, message: err.message });
+    }
+};
+
+// 2. Verify OTP
+const verifyOTP = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+
+        const pendingUser = await PendingUser.findOne({ email });
+        
+        if (!pendingUser) {
+            return res.status(400).json({ success: false, msg: "Session expired or invalid. Please register again.", message: "Session expired or invalid." });
+        }
+
+        if (pendingUser.otp !== otp || pendingUser.otpExpires < Date.now()) {
+            return res.status(400).json({ success: false, msg: "Invalid or expired OTP", message: "Invalid or expired OTP" });
+        }
+
+        const newUser = new User({
+            name: pendingUser.name,
+            email: pendingUser.email,
+            password: pendingUser.password
+        });
+        await newUser.save();
+
+        await PendingUser.deleteMany({ email });
+
+        const token = jwt.sign({ id: newUser._id, role: newUser.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
+        res.status(201).json({ success: true, message: "Account verified and created successfully.", token, user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role } });
+
+    } catch (err) {
+        console.error('Verify OTP error:', err);
         res.status(500).json({ success: false, msg: "Server Error: " + err.message, message: "Server Error: " + err.message });
+    }
+};
+
+// 3. Resend OTP
+const resendOTP = async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        const pendingUser = await PendingUser.findOne({ email });
+        if (!pendingUser) {
+            return res.status(400).json({ success: false, msg: "Session expired. Please register again.", message: "Session expired. Please register again." });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        await sendOTPEmail(email, otp);
+
+        pendingUser.otp = otp;
+        pendingUser.otpExpires = Date.now() + 10 * 60 * 1000;
+        await pendingUser.save();
+
+        res.status(200).json({ success: true, message: "OTP resent successfully." });
+    } catch (err) {
+        console.error('Resend OTP error:', err);
+        res.status(500).json({ success: false, msg: "Failed to resend OTP: " + err.message, message: "Failed to resend OTP: " + err.message });
     }
 };
 
@@ -172,7 +243,9 @@ const updatePassword = async (req, res) => {
 };
 
 export { 
-    register, 
+    register,
+    verifyOTP, 
+    resendOTP,
     login, 
     forgotPassword, 
     resetPassword,
