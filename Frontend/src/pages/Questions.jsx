@@ -13,6 +13,11 @@ const Questions = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sort, setSort] = useState('newest');
   
+  const handleFilterChange = (field, value) => {
+      setFilters(prev => ({ ...prev, [field]: value }));
+      setPagination(p => ({ ...p, page: 1 }));
+  };
+
   const [selectedIds, setSelectedIds] = useState(new Set());
   
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -64,11 +69,20 @@ const Questions = () => {
       if (filters.type) params.type = filters.type;
       if (debouncedSearch) params.search = debouncedSearch;
 
+      const queryString = new URLSearchParams(params).toString();
+      const requestUrl = `/api/questions?${queryString}`;
+      console.log("Fetching questions:", requestUrl);
+
       const res = await api.get('/questions', { params });
       setQuestions(res.data.questions || []);
-      if (res.data.pages !== undefined) {
-          setPagination(prev => ({ ...prev, page: res.data.page, pages: res.data.pages, total: res.data.total }));
-      }
+      
+      setPagination(prev => ({ 
+          ...prev, 
+          page: res.data.currentPage || 1, 
+          pages: res.data.totalPages || 1, 
+          total: res.data.totalQuestions || 0,
+          absoluteTotal: res.data.absoluteTotal || 0
+      }));
       
       const allRes = await api.get('/questions', { params: { limit: 1000 } });
       const uniqueSubjects = [...new Set((allRes.data.questions || []).map(q => q.subject))];
@@ -527,19 +541,23 @@ const Questions = () => {
 
                   {/* Desktop Filters */}
                   <div className={`flex-col md:flex-row items-center gap-4 ${isFilterOpen ? 'flex' : 'hidden md:flex'}`}>
-                      <select value={filters.subject} onChange={(e) => setFilters({...filters, subject: e.target.value})} className="w-full md:w-auto bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                      <select value={filters.subject} onChange={(e) => handleFilterChange('subject', e.target.value)} className="w-full md:w-auto bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                           <option value="">All Subjects</option>
                           {subjects.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
-                      <select value={filters.difficulty} onChange={(e) => setFilters({...filters, difficulty: e.target.value})} className="w-full md:w-auto bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                      <select value={filters.difficulty} onChange={(e) => handleFilterChange('difficulty', e.target.value)} className="w-full md:w-auto bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                           <option value="">All Difficulties</option>
                           <option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option>
                       </select>
                       <select value={sort} onChange={(e) => setSort(e.target.value)} className="w-full md:w-auto bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                           <option value="newest">Newest First</option>
                           <option value="oldest">Oldest First</option>
-                          <option value="subject_asc">Subject (A-Z)</option>
+                          <option value="az">Subject (A-Z)</option>
+                          <option value="za">Subject (Z-A)</option>
                           <option value="difficulty_asc">Difficulty (Asc)</option>
+                          <option value="difficulty_desc">Difficulty (Desc)</option>
+                          <option value="type_asc">Type (Asc)</option>
+                          <option value="type_desc">Type (Desc)</option>
                       </select>
                   </div>
               </div>
@@ -554,14 +572,38 @@ const Questions = () => {
                       ))}
                   </div>
               ) : questions.length === 0 ? (
-                  <div className="text-center py-16">
-                      <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100 dark:border-gray-700">
-                          <Layers className="w-8 h-8 text-gray-300 dark:text-gray-600" />
-                      </div>
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No questions found</h3>
-                      <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">We couldn't find any questions matching your current filters or search terms.</p>
-                      <button onClick={() => { setFilters({subject:'', difficulty:'', type:'', search:''}); setSort('newest'); }} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">Clear all filters</button>
-                  </div>
+                  (() => {
+                      console.log({
+                          totalQuestions: pagination.total,
+                          absoluteTotal: pagination.absoluteTotal,
+                          filters,
+                          sort,
+                          search: debouncedSearch
+                      });
+                      
+                      if (pagination.absoluteTotal === 0) {
+                          return (
+                              <div className="text-center py-16">
+                                  <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100 dark:border-gray-700">
+                                      <Layers className="w-8 h-8 text-gray-300 dark:text-gray-600" />
+                                  </div>
+                                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No questions exist in your Question Bank yet.</h3>
+                                  <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">Click Add Question or Import CSV to begin.</p>
+                              </div>
+                          );
+                      }
+                      
+                      return (
+                          <div className="text-center py-16">
+                              <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100 dark:border-gray-700">
+                                  <Layers className="w-8 h-8 text-gray-300 dark:text-gray-600" />
+                              </div>
+                              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No questions found</h3>
+                              <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">We couldn't find any questions matching your current filters or search terms.</p>
+                              <button onClick={() => { setFilters({subject:'', difficulty:'', type:'', search:''}); setSort('newest'); setDebouncedSearch(''); }} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">Clear all filters</button>
+                          </div>
+                      );
+                  })()
               ) : (
                   <>
                       {/* Desktop Table */}

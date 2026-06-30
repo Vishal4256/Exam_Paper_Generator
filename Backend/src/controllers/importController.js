@@ -148,26 +148,56 @@ export const checkSimilarity = async (req, res) => {
         const { questions } = req.body;
         if (!questions || !Array.isArray(questions)) return res.status(400).json({ success: false, msg: "Invalid questions" });
 
-        // Get all user questions
-        const existingQs = await Question.find({ user: req.user.id }, 'questionText subject').lean();
+        // Optimization: Get unique subjects from incoming questions
+        const uniqueSubjects = [...new Set(questions.map(q => q.subject).filter(Boolean))];
+        const query = { user: req.user.id };
+        if (uniqueSubjects.length > 0) {
+            // Include case-insensitive regex for subjects to be safe
+            query.subject = { $in: uniqueSubjects.map(s => new RegExp(`^${s}$`, 'i')) };
+        }
+
+        // Fetch optimized subset of questions
+        const existingQs = await Question.find(query, 'questionText subject difficulty').lean();
         
         const fuse = new Fuse(existingQs, {
             keys: ['questionText'],
             includeScore: true,
-            threshold: 0.2 // Max acceptable distance
+            threshold: 0.5 // Allow broader search to capture down to 50% match
         });
 
         const results = questions.map(q => {
-            const matches = fuse.search(q.questionText);
+            const matches = fuse.search(q.questionText || '');
+            let isSimilar = false;
+            let similarityScore = 0;
+            let similarityLevel = "Low";
+            let similarQuestionId = null;
+            let similarQuestionText = null;
+            let similarQuestionSubject = null;
+
             if (matches.length > 0) {
-                // Return best match
-                return {
-                    isSimilar: true,
-                    score: Math.round((1 - matches[0].score) * 100), // convert distance to % similarity
-                    similarTo: matches[0].item.questionText
-                };
+                // Convert distance to percentage (1 - distance) * 100
+                similarityScore = Math.round((1 - matches[0].score) * 100);
+                
+                if (similarityScore > 50) {
+                    isSimilar = true;
+                    similarQuestionId = matches[0].item._id.toString();
+                    similarQuestionText = matches[0].item.questionText;
+                    similarQuestionSubject = matches[0].item.subject;
+                    
+                    if (similarityScore >= 80) similarityLevel = "High";
+                    else similarityLevel = "Medium";
+                }
             }
-            return { isSimilar: false };
+
+            return {
+                ...q,
+                isSimilar,
+                similarityScore,
+                similarityLevel,
+                similarQuestionId,
+                similarQuestionText,
+                similarQuestionSubject
+            };
         });
 
         res.status(200).json({ success: true, results });

@@ -1,4 +1,5 @@
 import Question from '../models/Question.model.js';
+import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -106,7 +107,8 @@ const updateQuestion = async (req, res) => {
 const getQuestions = async (req, res) => {
     try {
         const { subject, difficulty, type, search, sort, page = 1, limit = 50 } = req.query;
-        let query = { user: req.user.id };
+        // Cast the user ID to an ObjectId so it matches in aggregation pipelines
+        let query = { user: new mongoose.Types.ObjectId(req.user.id) };
         
         if (subject && subject !== 'All') query.subject = subject;
         if (difficulty && difficulty !== 'All') query.difficulty = difficulty;
@@ -115,33 +117,62 @@ const getQuestions = async (req, res) => {
             query.questionText = { $regex: search, $options: 'i' };
         }
         
-        let sortOption = { createdAt: -1 };
-        switch(sort) {
-            case 'oldest': sortOption = { createdAt: 1 }; break;
-            case 'subject_asc': sortOption = { subject: 1 }; break;
-            case 'subject_desc': sortOption = { subject: -1 }; break;
-            case 'difficulty_asc': sortOption = { difficulty: 1 }; break;
-            case 'difficulty_desc': sortOption = { difficulty: -1 }; break;
-            case 'type_asc': sortOption = { type: 1 }; break;
-            case 'type_desc': sortOption = { type: -1 }; break;
-            case 'newest':
-            default: sortOption = { createdAt: -1 }; break;
-        }
+        const sortOptions = {
+            newest: { createdAt: -1 },
+            oldest: { createdAt: 1 },
+            az: { subject: 1 },
+            za: { subject: -1 },
+            difficulty_asc: { difficultyRank: 1, createdAt: -1 },
+            difficulty_desc: { difficultyRank: -1, createdAt: -1 },
+            type_asc: { type: 1 },
+            type_desc: { type: -1 }
+        };
+        
+        const sortOption = sortOptions[sort] || sortOptions.newest;
         
         const skip = (page - 1) * limit;
         const total = await Question.countDocuments(query);
-        const questions = await Question.find(query)
-            .sort(sortOption)
-            .skip(skip)
-            .limit(Number(limit));
-            
+        const absoluteTotal = await Question.countDocuments({ user: req.user.id });
+        
+        let questions;
+        if (sort === 'difficulty_asc' || sort === 'difficulty_desc') {
+            const sortDir = sort === 'difficulty_asc' ? 1 : -1;
+            questions = await Question.aggregate([
+                { $match: query },
+                {
+                    $addFields: {
+                        difficultyRank: {
+                            $switch: {
+                                branches: [
+                                    { case: { $eq: ["$difficulty", "Easy"] }, then: 1 },
+                                    { case: { $eq: ["$difficulty", "Medium"] }, then: 2 },
+                                    { case: { $eq: ["$difficulty", "Hard"] }, then: 3 }
+                                ],
+                                default: 0
+                            }
+                        }
+                    }
+                },
+                { $sort: { difficultyRank: sortDir, createdAt: -1 } },
+                { $skip: skip },
+                { $limit: Number(limit) }
+            ]);
+        } else {
+            questions = await Question.find(query)
+                .sort(sortOption)
+                .skip(skip)
+                .limit(Number(limit));
+        }
+
         res.json({
             questions,
-            total,
-            page: Number(page),
-            pages: Math.ceil(total / limit)
+            totalPages: Math.ceil(total / limit),
+            currentPage: Number(page),
+            totalQuestions: total,
+            absoluteTotal: absoluteTotal
         });
     } catch (err) {
+        console.error('Fetch questions error:', err);
         res.status(500).json({ msg: "Server Error", error: err.message });
     }
 };
