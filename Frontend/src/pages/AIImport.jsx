@@ -41,6 +41,9 @@ const AIImport = () => {
   const [selectedQuestions, setSelectedQuestions] = useState(new Set());
   const [isSaving, setIsSaving] = useState(false);
 
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [expandedComparisons, setExpandedComparisons] = useState(new Set());
+
   useEffect(() => {
     const sessionStr = localStorage.getItem('ai_session_state');
     if (sessionStr) {
@@ -106,19 +109,24 @@ const AIImport = () => {
             toast.success("Text extracted successfully!");
             setIsExtracting(false);
           } else if (job.result.generatedQuestions) {
-            const newQuestions = job.result.generatedQuestions;
+            let newQuestions = job.result.generatedQuestions;
             
             try {
               const simRes = await api.post('/import/check-similarity', { questions: newQuestions });
               if (simRes.data.success) {
-                  newQuestions.forEach((q, i) => {
-                      q.similarity = simRes.data.results[i];
-                  });
+                  newQuestions = simRes.data.results;
               }
             } catch (e) { console.error("Similarity check failed:", e); }
 
             setGeneratedQuestions(newQuestions);
-            setSelectedQuestions(new Set(newQuestions.map((_, i) => i)));
+            // Default select only if similarityScore < 80
+            const defaultSelected = new Set();
+            newQuestions.forEach((q, i) => {
+                if (!q.isSimilar || (q.similarityScore && q.similarityScore < 80)) {
+                    defaultSelected.add(i);
+                }
+            });
+            setSelectedQuestions(defaultSelected);
             toast.success("Questions generated successfully!");
             setActiveTab('questions');
             setIsGenerating(false);
@@ -255,11 +263,16 @@ const AIImport = () => {
     }
   };
 
-  const handleSaveAll = async () => {
+  const handleSaveAllClick = () => {
     const questionsToSave = generatedQuestions.filter((_, i) => selectedQuestions.has(i));
     if (questionsToSave.length === 0) return toast.error("No questions selected to save.");
-    
+    setShowSaveModal(true);
+  };
+
+  const executeSaveAll = async () => {
+    const questionsToSave = generatedQuestions.filter((_, i) => selectedQuestions.has(i));
     setIsSaving(true);
+    setShowSaveModal(false);
     try {
       const res = await api.post('/import/save', { questions: questionsToSave });
       toast.success(res.data.msg);
@@ -267,6 +280,7 @@ const AIImport = () => {
       const remaining = generatedQuestions.filter((_, i) => !selectedQuestions.has(i));
       setGeneratedQuestions(remaining);
       setSelectedQuestions(new Set());
+      setExpandedComparisons(new Set());
       
       if (remaining.length === 0) {
         setExtractedText('');
@@ -315,6 +329,30 @@ const AIImport = () => {
     const updated = [...generatedQuestions];
     updated[index][field] = value;
     setGeneratedQuestions(updated);
+  };
+
+  const toggleComparison = (index) => {
+    const newExpanded = new Set(expandedComparisons);
+    if (newExpanded.has(index)) newExpanded.delete(index);
+    else newExpanded.add(index);
+    setExpandedComparisons(newExpanded);
+  };
+
+  const removeDuplicates = () => {
+    const remaining = generatedQuestions.filter(q => !q.isSimilar || q.similarityScore < 80);
+    setGeneratedQuestions(remaining);
+    // Auto-select the remaining ones
+    setSelectedQuestions(new Set(remaining.map((_, i) => i)));
+    toast.success(`Removed ${generatedQuestions.length - remaining.length} duplicates.`);
+  };
+
+  const selectUniqueOnly = () => {
+    const uniqueIndices = new Set();
+    generatedQuestions.forEach((q, i) => {
+      if (!q.isSimilar || q.similarityScore < 80) uniqueIndices.add(i);
+    });
+    setSelectedQuestions(uniqueIndices);
+    toast.success("Selected unique questions only.");
   };
 
   const removeQuestion = (index) => {
@@ -388,6 +426,52 @@ const AIImport = () => {
           </div>
         </div>
       )}
+
+      {/* Save Validation Modal */}
+      {showSaveModal && (() => {
+        const toSave = generatedQuestions.filter((_, i) => selectedQuestions.has(i));
+        const unique = toSave.filter(q => !q.isSimilar || q.similarityScore < 50).length;
+        const warnings = toSave.filter(q => q.isSimilar && q.similarityScore >= 50 && q.similarityScore < 80).length;
+        const duplicates = toSave.filter(q => q.isSimilar && q.similarityScore >= 80).length;
+
+        return (
+          <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <CheckCircle2 className="w-6 h-6 text-indigo-600" /> Save Confirmation
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-4">You are attempting to save {toSave.length} questions to your Question Bank:</p>
+              
+              <div className="space-y-3 mb-6 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Unique Questions</span>
+                  <span className="text-gray-900 dark:text-white font-bold">{unique}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Similar Questions</span>
+                  <span className="text-gray-900 dark:text-white font-bold">{warnings}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="flex items-center gap-2 text-red-600 dark:text-red-400"><span className="w-2 h-2 rounded-full bg-red-500"></span> Potential Duplicates</span>
+                  <span className="text-gray-900 dark:text-white font-bold">{duplicates}</span>
+                </div>
+              </div>
+
+              {duplicates > 0 && (
+                <div className="mb-6 p-3 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 text-sm rounded-lg border border-red-100 dark:border-red-800 flex items-start gap-2">
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0 text-red-600 dark:text-red-500" />
+                  <p>You have selected highly similar questions. Saving them will create duplicates in your Question Bank.</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancel</button>
+                <button onClick={executeSaveAll} className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors">Save Anyway</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -687,7 +771,12 @@ const AIImport = () => {
               <button onClick={() => setSelectedQuestions(new Set(generatedQuestions.map((_, i) => i)))} className="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600">Select All</button>
               <button onClick={() => setSelectedQuestions(new Set())} className="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600">Deselect All</button>
               
-              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2 hidden sm:block"></div>
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-1 hidden lg:block"></div>
+              
+              <button onClick={removeDuplicates} className="px-3 py-1.5 text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/50">Remove Duplicates</button>
+              <button onClick={selectUniqueOnly} className="px-3 py-1.5 text-xs font-medium bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/50">Select Unique Only</button>
+
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-1 hidden lg:block"></div>
               
               <button onClick={downloadCSV} className="px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-white flex items-center gap-2">
                 <FileOutput className="w-4 h-4" /> CSV
@@ -699,7 +788,7 @@ const AIImport = () => {
                 <FileOutput className="w-4 h-4" /> DOCX
               </button>
               <button 
-                onClick={handleSaveAll}
+                onClick={handleSaveAllClick}
                 disabled={isSaving || generatedQuestions.length === 0}
                 className="px-4 py-1.5 text-sm font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-70 ml-auto sm:ml-0 shadow-sm"
               >
@@ -733,16 +822,47 @@ const AIImport = () => {
                       />
                     </div>
 
-                    {q.similarity?.isSimilar && (
-                      <div className="mb-3 mt-8 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs px-2 py-1.5 rounded flex items-start gap-1.5">
-                        <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-                        <div>
-                          <strong>{q.similarity.score}% Similar:</strong> This looks like a duplicate in your Question Bank. You can uncheck it to skip saving.
-                        </div>
+                    {/* Similarity Badge */}
+                    <div className="mb-3 mt-1">
+                      {!q.isSimilar || q.similarityScore < 50 ? (
+                        <span className="inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/50">
+                          <CheckCircle className="w-3 h-3" /> Unique Question
+                        </span>
+                      ) : q.similarityLevel === 'Medium' ? (
+                        <span className="inline-flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800/50">
+                          <AlertTriangle className="w-3 h-3" /> {q.similarityScore}% Similar
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-xs font-bold px-2.5 py-1 rounded-full border border-red-200 dark:border-red-800/50">
+                          <AlertTriangle className="w-3 h-3" /> {q.similarityScore}% Similar (Duplicate)
+                        </span>
+                      )}
+                    </div>
+
+                    {q.isSimilar && q.similarityScore >= 50 && (
+                      <div className="mb-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                        <button onClick={() => toggleComparison(idx)} className="w-full px-3 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 flex justify-between items-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                          <span>Compare Existing Question</span>
+                          <span>{expandedComparisons.has(idx) ? 'Hide' : 'Show'}</span>
+                        </button>
+                        {expandedComparisons.has(idx) && (
+                          <div className="p-3 text-xs grid grid-cols-2 gap-4">
+                            <div className="border-r border-gray-200 dark:border-gray-700 pr-4">
+                              <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Generated</span>
+                              <p className="text-gray-800 dark:text-gray-200 font-medium mb-1">{q.questionText}</p>
+                              <span className="text-[10px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-1.5 py-0.5 rounded">{q.subject}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Existing in Bank</span>
+                              <p className="text-gray-800 dark:text-gray-200 font-medium mb-1">{q.similarQuestionText}</p>
+                              <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">{q.similarQuestionSubject}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    <div className="flex flex-wrap gap-2 mb-3 pr-16 mt-2">
+                    <div className="flex flex-wrap gap-2 mb-3 pr-16 mt-1">
                       <select value={q.type} onChange={e => updateQuestion(idx, 'type', e.target.value)} className="text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-2 py-1 rounded border-none focus:ring-1 focus:ring-indigo-500 cursor-pointer">
                         <option>MCQ</option><option>Short Answer</option><option>Long Answer</option><option>Coding</option>
                       </select>

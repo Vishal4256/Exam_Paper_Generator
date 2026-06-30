@@ -214,217 +214,245 @@ const getExam = async (req, res) => {
 };
 
 const generatePDF = async (doc, exam, isAnswerKey) => {
+    // Layout Constants
+    const topMargin = 57; // ~20mm
+    const bottomMargin = 57; // ~20mm
+    const sideMargin = 43; // ~15mm
     
-    // Attempt to load logo if present
-    let logoBuffer = null;
-    if (exam.logo) {
-        try {
-            const response = await axios.get(exam.logo, { responseType: 'arraybuffer' });
-            logoBuffer = Buffer.from(response.data, 'binary');
-        } catch (e) {
-            console.error("Failed to load logo for PDF:", e.message);
-        }
-    }
+    const innerWidth = doc.page.width - sideMargin * 2;
+    const col1 = innerWidth * 0.10;
+    const col2 = innerWidth * 0.75;
+    const col3 = innerWidth * 0.15;
+    const x1 = sideMargin;
+    const x2 = x1 + col1;
+    const x3 = x2 + col2;
+    const x4 = x3 + col3;
 
-    // Header Styles
-    const style = exam.examHeaderStyle || 'Style 3';
+    // Add page numbering footer listener
+    let pageNumber = 1;
+    doc.on('pageAdded', () => {
+        pageNumber++;
+        const oldBottom = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0; 
+        
+        doc.font('Times-Roman').fontSize(8).text(`${pageNumber}`, 
+            doc.page.margins.left, 
+            doc.page.height - 40, 
+            { align: 'center', width: innerWidth, lineBreak: false }
+        );
+        doc.font('Times-Roman').fontSize(8).text(`Developed by: ExamFlow`, 
+            doc.page.margins.left, 
+            doc.page.height - 25, 
+            { align: 'center', width: innerWidth, lineBreak: false }
+        );
+        
+        doc.page.margins.bottom = oldBottom; 
+        doc.y = doc.page.margins.top; 
+    });
 
-    if (style === 'Style 1') {
-        if (logoBuffer) {
-            doc.image(logoBuffer, 50, 40, { fit: [50, 50] });
-        }
-        doc.fontSize(16).text(exam.collegeName || exam.institutionName || 'INSTITUTION NAME', { align: 'center', underline: false }).moveDown(0.2);
-        doc.fontSize(12).text(exam.examTitle + (isAnswerKey ? ' - ANSWER KEY' : ''), { align: 'center' }).moveDown();
-        doc.fontSize(10);
-        const displaySubject = exam.examMode === 'Multi Subject' ? 'Multiple Subjects' : (exam.subject || 'N/A');
-        doc.text(`Subject: ${displaySubject}`, 50, doc.y, { continued: true }).text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, { continued: true, align: 'center' }).text(`Max Marks: ${exam.totalMarks || 0}`, { align: 'right' });
-        if (exam.topic && exam.examMode !== 'Multi Subject') doc.text(`Topic: ${exam.topic}`, 50, doc.y);
-        doc.moveDown(0.5);
-    } else if (style === 'Style 2') {
-        doc.font('Times-Bold').fontSize(20).text(exam.collegeName || exam.institutionName || 'INSTITUTION NAME', { align: 'center' }).moveDown(0.2);
-        if (exam.department) {
-            doc.font('Times-Italic').fontSize(12).text(`Department of ${exam.department}`, { align: 'center' }).moveDown(0.2);
-        }
-        doc.font('Helvetica-Bold').fontSize(10).text(exam.academicSession || 'SESSION', { align: 'center' }).moveDown(0.5);
-        doc.fontSize(14).text(exam.examTitle + (isAnswerKey ? ' - ANSWER KEY' : ''), { align: 'center' }).moveDown();
-        doc.fontSize(10);
-        const displaySubject = exam.examMode === 'Multi Subject' ? 'Multiple Subjects' : (exam.courseCode || exam.subject || 'N/A');
-        doc.text(`Course: ${displaySubject}`, 50, doc.y, { continued: true }).text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, { align: 'right' });
-        if (exam.topic && exam.examMode !== 'Multi Subject') doc.text(`Topic: ${exam.topic}`, 50, doc.y);
-        doc.text(`Maximum Marks: ${exam.totalMarks || 0}`, { align: 'right' });
-        doc.moveDown(0.5);
-        doc.font('Helvetica');
-    } else if (style === 'Style 4') {
-        doc.rect(40, 40, 532, 80).stroke(); // Outer box
-        if (logoBuffer) {
-            doc.image(logoBuffer, 50, 45, { fit: [50, 50] });
-        }
-        doc.fontSize(16).text(exam.collegeName || exam.institutionName || 'INSTITUTION NAME', 110, 50, { align: 'left' });
-        doc.fontSize(12).text(exam.examTitle + (isAnswerKey ? ' - ANSWER KEY' : ''), 110, 70, { align: 'left' });
-        
-        doc.moveTo(40, 95).lineTo(572, 95).stroke(); // Separator line
-        
-        const displaySubject = exam.examMode === 'Multi Subject' ? 'Multiple Subjects' : exam.subject;
-        doc.fontSize(9).text(`SUBJECT: ${displaySubject}`, 50, 100);
-        doc.text(`SESSION: ${exam.academicSession}`, 400, 100);
-        doc.text(`TOPIC: ${exam.examMode === 'Multi Subject' ? 'N/A' : (exam.topic || 'N/A')}`, 50, 110);
-        doc.text(`MARKS: ${exam.totalMarks}`, 400, 110);
-        doc.text(`TIME: ${exam.duration} MINS`, 50, 120);
-        doc.moveDown(3);
-    } else {
-        // Style 3 (Default)
-        if (logoBuffer) {
-            doc.image(logoBuffer, 275, 40, { fit: [60, 60], align: 'center' });
-            doc.y = 110;
-        }
-        doc.fontSize(18).text(exam.collegeName || exam.institutionName || 'INSTITUTION NAME', { align: 'center' }).moveDown(0.2);
-        doc.fontSize(14).text(exam.examTitle + (isAnswerKey ? ' - ANSWER KEY' : ''), { align: 'center' }).moveDown();
-        if (exam.courseCode) {
-            doc.fontSize(10).text(`Course: ${exam.courseCode}`, { align: 'center' }).moveDown();
-        }
-        if (exam.examMode === 'Multi Subject') {
-            doc.fontSize(10).text(`Multiple Subjects`, { align: 'center' }).moveDown();
-        } else if (exam.topic) {
-            doc.fontSize(10).text(`Topic: ${exam.topic}`, { align: 'center' }).moveDown();
-        }
-        doc.fontSize(10);
-        doc.text(`Time: ${exam.duration ? exam.duration + ' mins' : 'N/A'}`, 50, doc.y, { continued: true }).text(`Total Marks: ${exam.totalMarks || 0}`, { align: 'right' });
-        doc.moveDown(0.5);
+    // Write page 1 footer manually initially
+    const oldBottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+    let oldY = doc.y;
+    doc.font('Times-Roman').fontSize(8).text(`1`, 
+        doc.page.margins.left, 
+        doc.page.height - 40, 
+        { align: 'center', width: innerWidth, lineBreak: false }
+    );
+    doc.font('Times-Roman').fontSize(8).text(`Developed by: ExamFlow`, 
+        doc.page.margins.left, 
+        doc.page.height - 25, 
+        { align: 'center', width: innerWidth, lineBreak: false }
+    );
+    doc.page.margins.bottom = oldBottom;
+    doc.y = oldY;
+
+    // Header Block
+    doc.font('Times-Bold').fontSize(14).text((exam.collegeName || exam.institutionName || 'INSTITUTION NAME').toUpperCase(), { align: 'center' }).moveDown(0.2);
+    
+    const displaySubject = exam.examMode === 'Multi Subject' ? 'MULTIPLE SUBJECTS' : (exam.subject || 'N/A').toUpperCase();
+    doc.fontSize(13).text(displaySubject, { align: 'center' }).moveDown(0.2);
+    
+    if (exam.courseCode) {
+        doc.font('Times-Roman').fontSize(10).text(`Class: ${exam.courseCode}`, { align: 'center' }).moveDown(0.2);
     }
     
-    // Instructions
-    if (exam.instructions && !isAnswerKey) {
-        doc.fontSize(10).font('Helvetica-Bold').text('Instructions:').font('Helvetica');
-        doc.fontSize(10).text(exam.instructions).moveDown();
-    }
+    doc.font('Times-Bold').fontSize(11).text(exam.examTitle.toUpperCase() + (isAnswerKey ? ' - ANSWER KEY' : ''), { align: 'center' }).moveDown(0.5);
     
-    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1.5);
-
-    // NEW BLOCK: Print Blueprint Table if it exists
-    if (exam.blueprint && exam.blueprint.length > 0 && !isAnswerKey) {
-        doc.fontSize(12).font('Helvetica-Bold').text('EXAM TEMPLATE & SECTION BREAKDOWN', { align: 'center' }).moveDown(0.5);
-        doc.font('Helvetica-Bold').fontSize(10);
-        const startY = doc.y;
-        doc.text('Section Name', 50, startY);
-        doc.text('Type', 170, startY);
-        doc.text('Questions', 230, startY);
-        doc.text('Marks', 290, startY);
-        doc.text('Time', 340, startY);
-        doc.text('Topics', 390, startY);
-        doc.text('Difficulty', 490, startY);
-        doc.moveTo(50, doc.y + 5).lineTo(550, doc.y + 5).stroke().moveDown(1);
-        doc.font('Helvetica').fontSize(9);
-        
-        exam.blueprint.forEach(sec => {
-            const y = doc.y;
-            doc.text(sec.sectionName, 50, y, { width: 110 });
-            doc.text(sec.type || 'MCQ', 170, y);
-            doc.text(sec.questionCount ? sec.questionCount.toString() : '0', 230, y);
-            doc.text(sec.totalMarks ? sec.totalMarks.toString() : (sec.marksPerQuestion * sec.questionCount).toString(), 290, y);
-            doc.text(sec.duration ? `${sec.duration}m` : '-', 340, y);
-            
-            let topicsStr = Array.isArray(sec.topics) ? sec.topics.join(', ') : (sec.topics || '-');
-            if (exam.examMode === 'Multi Subject' && sec.subject) {
-                topicsStr = `[${sec.subject}] ` + topicsStr;
-            }
-            doc.text(topicsStr, 390, y, { width: 90 });
-            doc.text(sec.difficulty || 'Mixed', 490, y);
-            doc.moveDown(0.5);
-        });
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1.5);
-    }
+    // Time & Marks row
+    doc.moveTo(sideMargin, doc.y).lineTo(sideMargin + innerWidth, doc.y).lineWidth(0.5).stroke().moveDown(0.5);
+    doc.font('Times-Bold').fontSize(10);
+    doc.text(`TIME: ${exam.duration ? exam.duration + ' HOURS' : 'N/A'}`, sideMargin, doc.y, { continued: true }).text(`M.M.: ${exam.totalMarks || 0}`, { align: 'right' });
+    doc.moveDown(0.5);
+    doc.moveTo(sideMargin, doc.y).lineTo(sideMargin + innerWidth, doc.y).stroke().moveDown(1);
+    
+    // General Instructions
+    doc.font('Times-Bold').fontSize(9).text('General Instructions:');
+    doc.font('Times-Roman').fontSize(9).text(exam.instructions || '• All questions are compulsory.\n• Read questions carefully before answering.', { lineGap: 3 }).moveDown(1.5);
     
     let qNumber = 1;
 
-    // Check if new blueprint architecture
-    if (exam.sectionedQuestions && exam.sectionedQuestions.length > 0) {
-        for (const section of exam.sectionedQuestions) {
-            if (!section.questions || section.questions.length === 0) continue;
-            
-            const bp = exam.blueprint ? exam.blueprint.find(b => b.sectionName === section.sectionName) : null;
-            const marksForType = bp ? bp.marksPerQuestion : 1;
-            const type = bp ? (bp.type || 'MCQ') : 'MCQ';
-            
-            doc.fontSize(12).font('Helvetica-Bold').text(`Section: ${section.sectionName} (${section.questions.length} Questions, ${marksForType} mark${marksForType > 1 ? 's' : ''} each)`, { underline: true }).moveDown(0.5);
-            doc.font('Helvetica');
-            
-            section.questions.forEach(q => {
-                doc.fontSize(11).text(`Q${qNumber}. ${q.questionText}`);
-                if (!isAnswerKey) {
-                    if (type === 'MCQ' && q.options && q.options.length > 0) {
-                        const letters = ['A', 'B', 'C', 'D', 'E'];
-                        q.options.forEach((opt, idx) => {
-                            doc.text(`   ${letters[idx] || '-'}. ${opt}`);
-                        });
-                    } else if (type === 'True/False') {
-                        doc.text(`   A. True`);
-                        doc.text(`   B. False`);
-                    } else if (type === 'Short Answer') {
-                        doc.moveDown(2);
-                    } else if (type === 'Long Answer' || type === 'Coding') {
-                        doc.moveDown(5);
-                    }
-                } else {
-                    doc.fillColor('green').text(`   Answer: ${q.correctAnswer || 'N/A'}`).fillColor('black');
-                }
-                doc.moveDown(0.5);
-                qNumber++;
-            });
-            doc.moveDown();
-        }
-    } else {
-        // Questions grouped by type (legacy)
-    // We'll iterate through all questions and list them
-    const questionsByType = {
-        'MCQ': [],
-        'Short Answer': [],
-        'Long Answer': [],
-        'True/False': []
+    const drawTableHeader = () => {
+        const h = 20;
+        doc.font('Times-Bold').fontSize(9);
+        const startY = doc.y;
+        doc.text('Q.NO.', x1, startY + 6, { width: col1, align: 'center' });
+        doc.text('QUESTIONS', x2, startY + 6, { width: col2, align: 'center' });
+        doc.text('MARKS', x3, startY + 6, { width: col3, align: 'center' });
+        
+        doc.lineWidth(0.5);
+        doc.rect(x1, startY, innerWidth, h).stroke();
+        doc.moveTo(x2, startY).lineTo(x2, startY + h).stroke();
+        doc.moveTo(x3, startY).lineTo(x3, startY + h).stroke();
+        doc.y = startY + h;
     };
-    
-    exam.questions.forEach(q => {
-        if (questionsByType[q.type]) {
-            questionsByType[q.type].push(q);
-        } else {
-            questionsByType['MCQ'].push(q); // default
-        }
-    });
 
-    qNumber = 1;
-    for (const [type, qList] of Object.entries(questionsByType)) {
-        if (qList.length === 0) continue;
+    const drawBorders = (startY, height) => {
+        doc.lineWidth(0.5);
+        doc.rect(x1, startY, innerWidth, height).stroke();
+        doc.moveTo(x2, startY).lineTo(x2, startY + height).stroke();
+        doc.moveTo(x3, startY).lineTo(x3, startY + height).stroke();
+    };
+
+    const checkPageBreak = (requiredHeight) => {
+        if (doc.y + requiredHeight > doc.page.height - bottomMargin - 10) {
+            doc.addPage();
+            drawTableHeader();
+            return true;
+        }
+        return false;
+    };
+
+    drawTableHeader();
+
+    const processSection = (qList, sectionName, type, marksForType) => {
+        // Section Header (Merged Row)
+        const secTitle = `${sectionName} (${type.toUpperCase()})`;
+        const secSub = `Questions carry ${marksForType} mark${marksForType > 1 ? 's' : ''}`;
         
-        const marksForType = exam.marksDistribution?.[type]?.marks || 1;
+        let secHeight = doc.heightOfString(secTitle, { font: 'Times-Bold', fontSize: 10, width: innerWidth }) + 
+                        doc.heightOfString(secSub, { font: 'Times-Roman', fontSize: 9, width: innerWidth }) + 15;
         
-        doc.fontSize(12).text(`Section: ${type} (${qList.length} Questions, ${marksForType} mark${marksForType > 1 ? 's' : ''} each)`, { underline: true }).moveDown(0.5);
+        checkPageBreak(secHeight);
         
+        let startY = doc.y;
+        doc.font('Times-Bold').fontSize(10).text(secTitle, x1, startY + 5, { width: innerWidth, align: 'center' });
+        doc.font('Times-Roman').fontSize(9).text(secSub, x1, doc.y + 2, { width: innerWidth, align: 'center' });
+        
+        doc.lineWidth(0.5);
+        doc.rect(x1, startY, innerWidth, secHeight).stroke();
+        doc.y = startY + secHeight;
+
+        // Questions
         qList.forEach(q => {
-            doc.fontSize(11).text(`Q${qNumber}. ${q.questionText}`);
+            // Calculate height needed
+            doc.font('Times-Roman').fontSize(10);
+            const qTextWidth = col2 - 10;
+            let reqHeight = 10; // top padding
+            
+            reqHeight += doc.heightOfString(q.questionText, { width: qTextWidth, lineGap: 2 });
             
             if (!isAnswerKey) {
                 if (type === 'MCQ' && q.options && q.options.length > 0) {
-                    const letters = ['A', 'B', 'C', 'D', 'E'];
+                    reqHeight += 5;
+                    const letters = ['A.', 'B.', 'C.', 'D.', 'E.'];
                     q.options.forEach((opt, idx) => {
-                        doc.text(`   ${letters[idx] || '-'}. ${opt}`);
+                        reqHeight += doc.heightOfString(`${letters[idx] || '-'} ${opt}`, { width: qTextWidth - 15, lineGap: 2 }) + 4;
                     });
                 } else if (type === 'True/False') {
-                    doc.text(`   A. True`);
-                    doc.text(`   B. False`);
+                    reqHeight += 35;
                 } else if (type === 'Short Answer') {
-                    doc.moveDown(2); // Leave some space for answer
-                } else if (type === 'Long Answer') {
-                    doc.moveDown(5); // Leave more space for answer
+                    reqHeight += 35;
+                } else if (type === 'Long Answer' || type === 'Coding') {
+                    reqHeight += 70;
                 }
             } else {
-                // For Answer Key, print the correct answer
-                doc.fillColor('green').text(`   Answer: ${q.correctAnswer || 'N/A'}`).fillColor('black');
+                reqHeight += 15; // correct answer height
             }
-            doc.moveDown(0.5);
+            
+            // Metadata height
+            reqHeight += 15; 
+            reqHeight += 5; // bottom padding
+            
+            // Minimum height check for text
+            const minH = Math.max(reqHeight, 30);
+            
+            checkPageBreak(minH);
+            
+            let rowStartY = doc.y;
+            
+            // Q.NO.
+            doc.font('Times-Bold').fontSize(10).text(`${qNumber}`, x1, rowStartY + 10, { width: col1, align: 'center' });
+            
+            // MARKS
+            doc.text(`${marksForType}`, x3, rowStartY + 10, { width: col3, align: 'center' });
+            
+            // QUESTION BODY
+            let currentY = rowStartY + 10;
+            doc.font('Times-Roman').text(q.questionText, x2 + 5, currentY, { width: qTextWidth, lineGap: 2 });
+            currentY = doc.y + 5;
+            
+            if (!isAnswerKey) {
+                if (type === 'MCQ' && q.options && q.options.length > 0) {
+                    const letters = ['A.', 'B.', 'C.', 'D.', 'E.'];
+                    q.options.forEach((opt, idx) => {
+                        doc.text(`${letters[idx] || '-'} ${opt}`, x2 + 15, currentY, { width: qTextWidth - 15, lineGap: 2 });
+                        currentY = doc.y + 4;
+                    });
+                } else if (type === 'True/False') {
+                    doc.text(`A. True`, x2 + 15, currentY);
+                    currentY += 15;
+                    doc.text(`B. False`, x2 + 15, currentY);
+                    currentY += 20;
+                } else if (type === 'Short Answer') {
+                    currentY += 35;
+                } else if (type === 'Long Answer' || type === 'Coding') {
+                    currentY += 70;
+                }
+            } else {
+                doc.fillColor('green').text(`Correct Answer: ${q.correctAnswer || 'N/A'}`, x2 + 5, currentY).fillColor('black');
+                currentY = doc.y + 10;
+            }
+            
+            // Metadata
+            const diff = q.difficultyLevel || 'Medium';
+            doc.font('Times-Roman').fillColor('gray').fontSize(7).text(`Difficulty: ${diff}`, x2 + 5, currentY, { align: 'right', width: qTextWidth - 5 });
+            doc.fillColor('black');
+            
+            // Draw row borders
+            const finalHeight = (currentY + 15) - rowStartY;
+            drawBorders(rowStartY, finalHeight);
+            
+            doc.y = rowStartY + finalHeight;
             qNumber++;
         });
-        doc.moveDown();
+    };
+
+    if (exam.sectionedQuestions && exam.sectionedQuestions.length > 0) {
+        let sIdx = 0;
+        for (const section of exam.sectionedQuestions) {
+            if (!section.questions || section.questions.length === 0) continue;
+            const bp = exam.blueprint ? exam.blueprint.find(b => b.sectionName === section.sectionName) : null;
+            const marksForType = bp ? bp.marksPerQuestion : 1;
+            const type = bp ? (bp.type || 'MCQ') : 'MCQ';
+            processSection(section.questions, section.sectionName.toUpperCase(), type, marksForType);
+            sIdx++;
+        }
+    } else {
+        const questionsByType = { 'MCQ': [], 'Short Answer': [], 'Long Answer': [], 'True/False': [] };
+        exam.questions.forEach(q => {
+            if (questionsByType[q.type]) questionsByType[q.type].push(q);
+            else questionsByType['MCQ'].push(q);
+        });
+
+        let sIdx = 0;
+        for (const [type, qList] of Object.entries(questionsByType)) {
+            if (qList.length === 0) continue;
+            const marksForType = exam.marksDistribution?.[type]?.marks || 1;
+            processSection(qList, `SECTION ${String.fromCharCode(65 + sIdx)}`, type, marksForType);
+            sIdx++;
+        }
     }
-  }
 };
 
 // Download exam PDF
@@ -433,7 +461,11 @@ const downloadExamPDF = async (req, res) => {
         const exam = await Exam.findOne({ _id: req.params.id, user: req.user.id }).populate('questions').populate('sectionedQuestions.questions');
         if (!exam) return res.status(404).json({ msg: "Exam not found" });
 
-        const doc = new PDFDocument({ margin: 50 });
+        const doc = new PDFDocument({ 
+            size: 'A4', 
+            margins: { top: 57, bottom: 57, left: 43, right: 43 },
+            autoFirstPage: true
+        });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=Exam-${exam._id}.pdf`);
         doc.pipe(res);
@@ -455,7 +487,11 @@ const downloadAnswerKeyPDF = async (req, res) => {
         const exam = await Exam.findOne({ _id: req.params.id, user: req.user.id }).populate('questions').populate('sectionedQuestions.questions');
         if (!exam) return res.status(404).json({ msg: "Exam not found" });
 
-        const doc = new PDFDocument({ margin: 50 });
+        const doc = new PDFDocument({ 
+            size: 'A4', 
+            margins: { top: 57, bottom: 57, left: 43, right: 43 },
+            autoFirstPage: true
+        });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=AnswerKey-${exam._id}.pdf`);
         doc.pipe(res);

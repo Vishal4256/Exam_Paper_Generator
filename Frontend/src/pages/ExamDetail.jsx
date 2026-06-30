@@ -40,7 +40,6 @@ const ExamDetail = () => {
         link.click();
         link.remove();
         window.URL.revokeObjectURL(downloadUrl);
-        toast.success(type === 'exam' ? 'Exam PDF Downloaded!' : 'Answer Key Exported!');
     } catch (err) {
         console.error('Error downloading PDF:', err);
         toast.error('Failed to download PDF');
@@ -210,209 +209,141 @@ const ExamDetail = () => {
 
       {/* Document Canvas (A4 simulation) */}
       <div className="bg-white dark:bg-gray-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none border border-gray-200 dark:border-gray-800 rounded-sm mx-auto w-full max-w-[800px] min-h-[1131px] p-12 md:p-16 relative print:shadow-none print:border-none print:m-0 print:p-0 print:max-w-none print:w-full">
-          
-          {(!exam.examHeaderStyle || exam.examHeaderStyle === 'Style 3') && (
-              <div className="text-center mb-10 border-b-2 border-gray-900 dark:border-gray-100 pb-4">
-                  <div className="flex justify-center mb-4">
-                      {exam.logo ? (
-                          <img src={exam.logo} alt="Logo" className="w-16 h-16 object-contain" />
-                      ) : (
-                          <div className="w-16 h-16 border-2 border-gray-800 dark:border-gray-200 flex items-center justify-center">
-                              <FileText className="w-8 h-8 text-gray-800 dark:text-gray-200" />
-                          </div>
-                      )}
-                  </div>
-                  <h4 className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-[0.2em] mb-2">{exam.collegeName || exam.institutionName || 'INSTITUTION NAME'}</h4>
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-tight mb-2 uppercase">{exam.examTitle}</h2>
-                  {exam.courseCode && <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 text-xs font-bold rounded-full mb-6">{exam.courseCode}</span>}
-                  <div className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
-                      <span>Time: {exam.duration} Minutes</span>
-                      <span>Total Marks: {exam.totalMarks}</span>
-                  </div>
+          {/* Header Block */}
+          <div className="text-center font-serif text-black dark:text-gray-100 mb-6">
+              <h1 className="text-xl font-bold uppercase tracking-wide">{exam.collegeName || exam.institutionName || 'INSTITUTION NAME'}</h1>
+              <h2 className="text-lg font-bold uppercase mt-1">{exam.examMode === 'Multi Subject' ? 'MULTIPLE SUBJECTS' : (exam.subject || 'N/A')}</h2>
+              {exam.courseCode && <div className="text-sm mt-1">Class: {exam.courseCode}</div>}
+              <h3 className="text-base font-bold uppercase mt-2">{exam.examTitle} {previewMode === 'answer' ? '- ANSWER KEY' : ''}</h3>
+              
+              <div className="flex justify-between items-center text-sm font-bold uppercase border-t border-black dark:border-gray-200 mt-4 pt-4 border-b pb-4">
+                  <span>TIME: {exam.duration ? exam.duration + ' HOURS' : 'N/A'}</span>
+                  <span>M.M.: {exam.totalMarks || 0}</span>
               </div>
-          )}
-
-          {exam.examHeaderStyle === 'Style 1' && (
-              <div className="text-center mb-10 border-b-2 border-gray-900 dark:border-gray-100 pb-6 relative">
-                  {exam.logo && <img src={exam.logo} alt="Logo" className="absolute left-0 top-0 w-16 h-16 object-contain" />}
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase tracking-wide">{exam.institutionName || exam.collegeName}</h2>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-1 uppercase">{exam.examTitle}</h3>
-                  <div className="flex justify-between items-center mt-6 text-sm font-bold text-gray-800 dark:text-gray-200">
-                      <span>Subject: {exam.subject}</span>
-                      <span>Time: {exam.duration} Mins</span>
-                      <span>Max Marks: {exam.totalMarks}</span>
-                  </div>
-              </div>
-          )}
-
-          {exam.examHeaderStyle === 'Style 2' && (
-              <div className="text-center mb-10 border-b border-gray-400 dark:border-gray-600 pb-6">
-                  <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-1">{exam.institutionName || exam.collegeName}</h2>
-                  {exam.department && <h3 className="text-sm font-serif italic text-gray-600 dark:text-gray-400 mb-2">Department of {exam.department}</h3>}
-                  <h4 className="text-md font-bold uppercase tracking-widest text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 inline-block px-4 py-1 rounded-full mb-4">{exam.academicSession}</h4>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{exam.examTitle}</h3>
-                  <div className="flex justify-between items-center text-sm font-bold text-gray-800 dark:text-gray-200 mt-4 px-4 py-2 border-y border-gray-300 dark:border-gray-700">
-                      <span>Course: {exam.courseCode || exam.subject}</span>
-                      <span>Time Allowed: {exam.duration} Mins</span>
-                      <span>Maximum Marks: {exam.totalMarks}</span>
-                  </div>
-              </div>
-          )}
-
-          {exam.examHeaderStyle === 'Style 4' && (
-              <div className="mb-10 border-4 border-double border-gray-900 dark:border-gray-100 p-4">
-                  <div className="flex gap-4 items-center border-b border-gray-400 dark:border-gray-600 pb-4 mb-4">
-                      {exam.logo && <img src={exam.logo} alt="Logo" className="w-16 h-16 object-contain" />}
-                      <div className="flex-1 text-center pr-16">
-                          <h2 className="text-xl font-bold text-gray-900 dark:text-white uppercase">{exam.institutionName || exam.collegeName}</h2>
-                          <h3 className="text-md font-bold text-gray-800 dark:text-gray-200 uppercase mt-1">{exam.examTitle}</h3>
-                      </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-y-2 text-sm font-bold text-gray-800 dark:text-gray-200">
-                      <div><span className="text-gray-500 dark:text-gray-400">SUBJECT:</span> {exam.subject}</div>
-                      <div className="text-right"><span className="text-gray-500 dark:text-gray-400">SESSION:</span> {exam.academicSession}</div>
-                      <div><span className="text-gray-500 dark:text-gray-400">TIME:</span> {exam.duration} MINUTES</div>
-                      <div className="text-right"><span className="text-gray-500 dark:text-gray-400">MARKS:</span> {exam.totalMarks}</div>
-                  </div>
-              </div>
-          )}
-
-          {previewMode === 'answer' && (
-              <div className="text-center bg-gray-100 dark:bg-gray-800 py-2 mb-6 font-bold uppercase tracking-widest text-sm border-y border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white">
-                  OFFICIAL ANSWER KEY
-              </div>
-          )}
-
-          {exam.instructions && previewMode === 'paper' && (
-              <div className="mb-10 text-xs text-gray-800 dark:text-gray-200">
-                  <h3 className="font-bold underline mb-3">General Instructions:</h3>
-                  <pre className="text-xs text-gray-700 dark:text-gray-300 font-sans whitespace-pre-wrap">{exam.instructions}</pre>
-              </div>
-          )}
-
-          <div className="space-y-10">
-            {isSectioned ? (
-                exam.sectionedQuestions?.map((sectionGroup, sIdx) => {
-                    const secInfo = exam.blueprint.find(b => b.sectionName === sectionGroup.sectionName) || {};
-                    const marksForType = secInfo.marksPerQuestion || 1;
-                    const qList = sectionGroup.questions || [];
-                    const type = secInfo.type || 'MCQ';
-
-                    return (
-                        <div key={sIdx}>
-                            <div className="flex justify-between items-end border-b-2 border-gray-800 dark:border-gray-200 pb-2 mb-6">
-                                <h3 className="font-black text-gray-900 dark:text-white uppercase text-sm">
-                                    SECTION {String.fromCharCode(65 + sIdx)}: {sectionGroup.sectionName} <span className="font-bold">({qList.length * marksForType} MARKS)</span>
-                                </h3>
-                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 italic">Attempt all questions.</span>
-                            </div>
-
-                            <div className="space-y-6">
-                                {qList.map((question, index) => (
-                                    <div key={question._id || index} className="flex gap-4">
-                                        <span className="font-black text-gray-900 dark:text-white text-xs mt-0.5">Q{index + 1}.</span>
-                                        <div className="flex-1">
-                                            <p className="text-xs font-bold text-gray-900 dark:text-white mb-3 leading-relaxed">
-                                                {question.questionText}
-                                            </p>
-                                            
-                                            {(type === 'MCQ' || type === 'True/False') && previewMode === 'paper' && (
-                                                <div className="grid grid-cols-2 gap-y-2 gap-x-8 ml-2">
-                                                    {(type === 'True/False' ? ['True', 'False'] : (question.options || [])).map((option, optIndex) => (
-                                                        <div key={optIndex} className="text-xs text-gray-700 dark:text-gray-300 font-medium flex gap-2">
-                                                            <span>{String.fromCharCode(65 + optIndex)})</span> {option}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            {(type === 'Long Answer' || type === 'Coding') && previewMode === 'paper' && (
-                                                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 italic text-[10px] text-gray-400 font-medium">
-                                                    [Space for answer...]
-                                                </div>
-                                            )}
-                                            {previewMode === 'answer' && (
-                                                <div className="mt-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg">
-                                                    <div className="flex gap-2">
-                                                        <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-widest">Answer:</span>
-                                                        <span className="text-xs font-medium text-emerald-900 dark:text-emerald-300">{question.correctAnswer}</span>
-                                                    </div>
-                                                    {question.explanation && (
-                                                        <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-500 leading-relaxed italic border-t border-emerald-200/50 dark:border-emerald-800/50 pt-2">
-                                                            {question.explanation}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <span className="font-bold text-gray-900 dark:text-white text-[10px]">[{marksForType}]</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })
-            ) : (
-                Object.entries(groupedQuestions).map(([type, qList]) => {
-                    const marksForType = exam.marksDistribution?.[type]?.marks || 1;
-                    const sectionMap = {'MCQ': 'A: MULTIPLE CHOICE', 'Short Answer': 'B: SHORT ANALYSIS', 'Long Answer': 'C: LONG RESPONSE', 'True/False': 'D: TRUE/FALSE'};
-
-                    return (
-                        <div key={type}>
-                            <div className="flex justify-between items-end border-b-2 border-gray-800 dark:border-gray-200 pb-2 mb-6">
-                                <h3 className="font-black text-gray-900 dark:text-white uppercase text-sm">
-                                    SECTION {sectionMap[type] || `A: ${type.toUpperCase()}`} <span className="font-bold">({qList.length * marksForType} MARKS)</span>
-                                </h3>
-                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 italic">Attempt all questions.</span>
-                            </div>
-
-                            <div className="space-y-6">
-                                {qList.map((question, index) => (
-                                    <div key={question._id || index} className="flex gap-4">
-                                        <span className="font-black text-gray-900 dark:text-white text-xs mt-0.5">Q{index + 1}.</span>
-                                        <div className="flex-1">
-                                            <p className="text-xs font-bold text-gray-900 dark:text-white mb-3 leading-relaxed">
-                                                {question.questionText}
-                                            </p>
-                                            
-                                            {(type === 'MCQ' || type === 'True/False') && previewMode === 'paper' && (
-                                                <div className="grid grid-cols-2 gap-y-2 gap-x-8 ml-2">
-                                                    {(type === 'True/False' ? ['True', 'False'] : (question.options || [])).map((option, optIndex) => (
-                                                        <div key={optIndex} className="text-xs text-gray-700 dark:text-gray-300 font-medium flex gap-2">
-                                                            <span>{String.fromCharCode(65 + optIndex)})</span> {option}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            {type === 'Long Answer' && previewMode === 'paper' && (
-                                                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 italic text-[10px] text-gray-400 font-medium">
-                                                    [Space for answer...]
-                                                </div>
-                                            )}
-                                            {previewMode === 'answer' && (
-                                                <div className="mt-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-lg">
-                                                    <div className="flex gap-2">
-                                                        <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-widest">Answer:</span>
-                                                        <span className="text-xs font-medium text-emerald-900 dark:text-emerald-300">{question.correctAnswer}</span>
-                                                    </div>
-                                                    {question.explanation && (
-                                                        <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-500 leading-relaxed italic border-t border-emerald-200/50 dark:border-emerald-800/50 pt-2">
-                                                            {question.explanation}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <span className="font-bold text-gray-900 dark:text-white text-[10px]">[{marksForType}]</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })
-            )}
           </div>
 
+          {/* Instructions */}
+          <div className="mb-6 font-serif text-black dark:text-gray-100">
+              <h4 className="text-sm font-bold mb-2">General Instructions:</h4>
+              <pre className="text-sm font-serif whitespace-pre-wrap leading-relaxed">{exam.instructions || '• All questions are compulsory.\n• Read questions carefully before answering.'}</pre>
+          </div>
 
+          {/* Table Container */}
+          <div className="border-t border-l border-black dark:border-gray-200 font-serif text-black dark:text-gray-100">
+              
+              {/* Table Header Row */}
+              <div className="flex bg-gray-50 dark:bg-gray-800/50">
+                  <div className="w-[10%] p-2 text-center text-xs font-bold border-r border-b border-black dark:border-gray-200">Q.NO.</div>
+                  <div className="w-[75%] p-2 text-center text-xs font-bold border-r border-b border-black dark:border-gray-200">QUESTIONS</div>
+                  <div className="w-[15%] p-2 text-center text-xs font-bold border-r border-b border-black dark:border-gray-200">MARKS</div>
+              </div>
+
+              {/* Sections & Questions */}
+              {(() => {
+                  let qNumber = 1;
+
+                  const renderSection = (qList, sectionName, type, marksForType) => (
+                      <React.Fragment key={sectionName}>
+                          {/* Section Header */}
+                          <div className="border-b border-r border-black dark:border-gray-200 bg-gray-50 dark:bg-gray-800/50 text-center py-2">
+                              <div className="text-sm font-bold uppercase">{sectionName} ({type.toUpperCase()})</div>
+                              <div className="text-xs italic">Questions carry {marksForType} mark{marksForType > 1 ? 's' : ''}</div>
+                          </div>
+                          
+                          {/* Questions */}
+                          {qList.map((q, qIndex) => {
+                              const currentQNum = qNumber++;
+                              return (
+                                  <div key={q._id || qIndex} className="flex border-b border-r border-black dark:border-gray-200 min-h-[80px]">
+                                      {/* Q.NO */}
+                                      <div className="w-[10%] p-3 text-center text-sm font-bold border-r border-black dark:border-gray-200">
+                                          {currentQNum}
+                                      </div>
+                                      
+                                      {/* QUESTION BODY */}
+                                      <div className="w-[75%] p-4 border-r border-black dark:border-gray-200 flex flex-col justify-between">
+                                          <div>
+                                              <p className="text-sm leading-relaxed mb-4 whitespace-pre-wrap">{q.questionText}</p>
+                                              
+                                              {/* Options */}
+                                              {previewMode === 'paper' && (
+                                                  <div className="flex flex-col gap-2 ml-2">
+                                                      {type === 'MCQ' && q.options && q.options.map((opt, idx) => (
+                                                          <div key={idx} className="text-sm">
+                                                              {String.fromCharCode(65 + idx)}. {opt}
+                                                          </div>
+                                                      ))}
+                                                      {type === 'True/False' && (
+                                                          <>
+                                                              <div className="text-sm">A. True</div>
+                                                              <div className="text-sm">B. False</div>
+                                                          </>
+                                                      )}
+                                                      {(type === 'Short Answer' || type === 'Long Answer' || type === 'Coding') && (
+                                                          <div className="mt-8 italic text-xs text-gray-400">
+                                                              [Space for answer...]
+                                                          </div>
+                                                      )}
+                                                  </div>
+                                              )}
+                                              
+                                              {/* Answer Key Output */}
+                                              {previewMode === 'answer' && (
+                                                  <div className="mt-4 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                                                      Correct Answer: {q.correctAnswer || 'N/A'}
+                                                  </div>
+                                              )}
+                                          </div>
+                                          
+                                          {/* Metadata */}
+                                          <div className="text-right mt-4 text-[10px] text-gray-500 italic">
+                                              Difficulty: {q.difficultyLevel || 'Medium'}
+                                          </div>
+                                      </div>
+                                      
+                                      {/* MARKS */}
+                                      <div className="w-[15%] p-3 text-center text-sm font-bold flex items-center justify-center">
+                                          {marksForType}
+                                      </div>
+                                  </div>
+                              );
+                          })}
+                      </React.Fragment>
+                  );
+
+                  if (isSectioned && exam.sectionedQuestions) {
+                      return exam.sectionedQuestions.map((sectionGroup, sIdx) => {
+                          if (!sectionGroup.questions || sectionGroup.questions.length === 0) return null;
+                          const bp = exam.blueprint ? exam.blueprint.find(b => b.sectionName === sectionGroup.sectionName) : null;
+                          const marksForType = bp ? bp.marksPerQuestion : 1;
+                          const type = bp ? (bp.type || 'MCQ') : 'MCQ';
+                          return renderSection(sectionGroup.questions, `SECTION ${String.fromCharCode(65 + sIdx)}`, type, marksForType);
+                      });
+                  } else {
+                      const questionsByType = { 'MCQ': [], 'Short Answer': [], 'Long Answer': [], 'True/False': [] };
+                      exam.questions.forEach(q => {
+                          if (questionsByType[q.type]) questionsByType[q.type].push(q);
+                          else questionsByType['MCQ'].push(q);
+                      });
+
+                      let sIdx = 0;
+                      return Object.entries(questionsByType).map(([type, qList]) => {
+                          if (qList.length === 0) return null;
+                          const marksForType = exam.marksDistribution?.[type]?.marks || 1;
+                          const sectionName = `SECTION ${String.fromCharCode(65 + sIdx)}`;
+                          sIdx++;
+                          return renderSection(qList, sectionName, type, marksForType);
+                      });
+                  }
+              })()}
+
+          </div>
+
+          <div className="mt-12 text-center text-xs text-black dark:text-gray-400 font-serif">
+              Page 1
+              <br/>
+              <span className="text-[10px]">Developed by ExamFlow</span>
+          </div>
       </div>
     </div>
   );

@@ -22,7 +22,8 @@ const ImportHistorySchema = new mongoose.Schema({
     default: 'Document'
   },
   extractedText: {
-    type: String
+    type: String,
+    default: ''
   },
   generatedQuestions: {
     type: Array,
@@ -33,6 +34,14 @@ const ImportHistorySchema = new mongoose.Schema({
     default: 0
   },
   exportCount: {
+    type: Number,
+    default: 0
+  },
+  duplicatesDetected: {
+    type: Number,
+    default: 0
+  },
+  duplicatesRemoved: {
     type: Number,
     default: 0
   },
