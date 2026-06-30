@@ -90,16 +90,57 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+import { createTransporter } from './src/utils/emailService.js';
+
 // ======================
-// Resend Startup Verification
+// SMTP Startup Verification & Audit
 // ======================
-if (!process.env.RESEND_API_KEY) {
-    console.warn("⚠️ RESEND_API_KEY not configured");
-}
+const verifySMTPAtStartup = async () => {
+  try {
+    const transporter = createTransporter();
+    await transporter.verify();
+    console.log("✅ NodeMailer Transporter Verified Successfully at Startup!");
+  } catch (error) {
+    console.warn("⚠️ SMTP Verification Failed at Startup, continuing anyway.");
+    console.warn("Error Code:", error.code);
+    console.warn("Exact Error:", error.message);
+  }
+};
+verifySMTPAtStartup();
 
 // ======================
 // API Routes
 // ======================
+app.get('/api/debug/email', async (req, res) => {
+  try {
+    const transporter = createTransporter();
+    
+    // Test 1: Verify Connection
+    await transporter.verify();
+    
+    // Test 2: Send Email
+    const info = await transporter.sendMail({
+      from: `"${process.env.APP_NAME || 'ExamFlow Debug'}" <${process.env.SMTP_USER}>`,
+      to: process.env.SMTP_USER, // sending to self for testing
+      subject: 'SMTP Audit Test - ExamFlow',
+      text: 'This is a test email triggered from /api/debug/email to verify the SMTP configuration on Render.'
+    });
+
+    res.status(200).json({
+      success: true,
+      provider: "gmail",
+      messageId: info.messageId,
+      accepted: info.accepted || [],
+      rejected: info.rejected || []
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message || error.toString(),
+      code: error.code
+    });
+  }
+});
 app.use('/api/auth', authRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/questions', questionRoutes);
