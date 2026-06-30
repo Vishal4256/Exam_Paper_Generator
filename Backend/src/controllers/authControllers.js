@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.model.js';
 import PendingUser from '../models/PendingUser.model.js';
-import { sendPasswordResetLink, sendVerificationEmail } from '../utils/emailService.js';
+import { sendPasswordResetLink, sendOTPEmail } from '../utils/emailService.js';
 
 // 1. Register User
 const register = async (req, res) => {
@@ -19,7 +19,7 @@ const register = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         // Send OTP email before creating user/pending user
-        await sendVerificationEmail(email, otp);
+        await sendOTPEmail(email, otp);
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -90,7 +90,7 @@ const resendOTP = async (req, res) => {
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         
-        await sendVerificationEmail(email, otp);
+        await sendOTPEmail(email, otp);
 
         pendingUser.otp = otp;
         pendingUser.otpExpires = Date.now() + 10 * 60 * 1000;
