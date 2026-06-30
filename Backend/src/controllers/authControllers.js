@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.model.js';
 import PendingUser from '../models/PendingUser.model.js';
-import { sendPasswordResetLink, sendOTPEmail } from '../utils/emailService.js';
+import { sendPasswordResetLink, sendVerificationEmail } from '../utils/emailService.js';
 
 // 1. Register User
 const register = async (req, res) => {
@@ -19,7 +19,10 @@ const register = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         // Send OTP email before creating user/pending user
-        await sendOTPEmail(email, otp);
+        const emailResult = await sendVerificationEmail(email, otp);
+        if (!emailResult.success) {
+            console.error("Email sending failed:", emailResult.error);
+        }
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -40,7 +43,6 @@ const register = async (req, res) => {
 
     } catch (err) {
         console.error('Registration error:', err);
-        // Do not create pending user if email fails
         res.status(500).json({ success: false, msg: "Registration Failed: " + err.message, message: err.message });
     }
 };
@@ -90,7 +92,10 @@ const resendOTP = async (req, res) => {
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         
-        await sendOTPEmail(email, otp);
+        const emailResult = await sendVerificationEmail(email, otp);
+        if (!emailResult.success) {
+            console.error("Email sending failed:", emailResult.error);
+        }
 
         pendingUser.otp = otp;
         pendingUser.otpExpires = Date.now() + 10 * 60 * 1000;
@@ -144,7 +149,10 @@ const forgotPassword = async (req, res) => {
         const resetLink = `${frontendUrl}/reset-password/${token}`;
 
         // Send Email
-        await sendPasswordResetLink(email, user.name, resetLink);
+        const emailResult = await sendPasswordResetLink(email, resetLink);
+        if (!emailResult.success) {
+            console.error("Email sending failed:", emailResult.error);
+        }
 
         res.status(200).json({
             msg: "Password reset link sent to your email"
