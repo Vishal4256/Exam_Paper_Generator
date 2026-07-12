@@ -3,7 +3,6 @@ import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useAuth } from '../context/AuthContext';
-import { SearchProvider } from '../context/SearchContext';
 const DashboardLayout = () => {
   const { user, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -21,7 +20,6 @@ const DashboardLayout = () => {
   }
 
   return (
-    <SearchProvider>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex text-gray-900 dark:text-gray-100 overflow-x-hidden">
         <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
         
@@ -34,7 +32,6 @@ const DashboardLayout = () => {
           </main>
         </div>
       </div>
-    </SearchProvider>
   );
 };
 

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../utils/axiosConfig';
 import { useAuth } from '../context/AuthContext';
-import { useSearch } from '../context/SearchContext';
-import { useDebounce } from '../hooks/useDebounce';
 import { Plus, Sparkles, FileText, CheckCircle2 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 const Dashboard = () => {
@@ -15,20 +13,16 @@ const Dashboard = () => {
     recentExams: []
   });
   const [loading, setLoading] = useState(true);
-  const { globalSearchQuery } = useSearch();
-  const debouncedSearch = useDebounce(globalSearchQuery, 300);
-
   useEffect(() => {
     fetchStats();
-  }, [debouncedSearch]);
+  }, []);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const queryParam = debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '';
       const [questionsRes, examsRes] = await Promise.all([
-        api.get(`/questions${queryParam}`),
-        api.get(`/exams${queryParam}`)
+        api.get('/questions'),
+        api.get('/exams')
       ]);
 
       const questions = questionsRes.data.questions || questionsRes.data;

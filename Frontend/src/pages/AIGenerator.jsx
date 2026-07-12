@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/axiosConfig';
-import { useSearch } from '../context/SearchContext';
 import { Sparkles, Save, RefreshCw, BookOpen, Layers, BarChart, Target, List, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -20,16 +19,7 @@ const AIGenerator = () => {
     const [editingIndex, setEditingIndex] = useState(null);
     const [subjects, setSubjects] = useState([]);
     
-    const { globalSearchQuery } = useSearch();
 
-    const filteredGeneratedQuestions = useMemo(() => {
-        if (!globalSearchQuery) return generatedQuestions;
-        const lowerQ = globalSearchQuery.toLowerCase();
-        return generatedQuestions.filter(q => 
-            (q.questionText && q.questionText.toLowerCase().includes(lowerQ)) ||
-            (q.subject && q.subject.toLowerCase().includes(lowerQ))
-        );
-    }, [generatedQuestions, globalSearchQuery]);
 
     React.useEffect(() => {
         const fetchSubjects = async () => {
@@ -238,7 +228,7 @@ const AIGenerator = () => {
                         </div>
 
                         <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-white dark:bg-gray-900">
-                            {filteredGeneratedQuestions.length === 0 ? (
+                            {generatedQuestions.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
                                     <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center">
                                         <Sparkles className="w-8 h-8 text-gray-300 dark:text-gray-600" />
@@ -247,9 +237,7 @@ const AIGenerator = () => {
                                 </div>
                             ) : (
                                 <div className="space-y-6">
-                                    {filteredGeneratedQuestions.map((q, filteredIdx) => {
-                                        // Need original index for edit/save actions
-                                        const idx = generatedQuestions.findIndex(orig => orig === q);
+                                    {generatedQuestions.map((q, idx) => {
                                         return (
                                         <div key={idx} className="border border-gray-100 dark:border-gray-700 rounded-xl p-5 bg-gray-50/30 dark:bg-gray-800/30 hover:border-indigo-100 dark:hover:border-indigo-500/30 transition-colors">
                                             <div className="flex gap-3 mb-4">

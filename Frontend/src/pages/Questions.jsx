@@ -5,16 +5,14 @@ import { Search, Plus, Filter, Trash2, Edit2, ChevronLeft, ChevronRight, Check, 
 import { toast } from 'react-toastify';
 import Papa from 'papaparse';
 import AddQuestionWorkspace from '../components/AddQuestionWorkspace';
-import { useSearch } from '../context/SearchContext';
-
 const Questions = () => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   
   const [filters, setFilters] = useState({ subject: '', difficulty: '', type: '' });
-  const { globalSearchQuery, setGlobalSearchQuery } = useSearch();
-  const [debouncedSearch, setDebouncedSearch] = useState(globalSearchQuery);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sort, setSort] = useState('newest');
   
   const handleFilterChange = (field, value) => {
@@ -53,11 +51,11 @@ const Questions = () => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearch(globalSearchQuery);
+      setDebouncedSearch(searchQuery);
       setPagination(p => ({ ...p, page: 1 }));
     }, 300);
     return () => clearTimeout(handler);
-  }, [globalSearchQuery]);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchQuestions();
@@ -429,8 +427,8 @@ const Questions = () => {
                       <input
                           type="text"
                           placeholder="Search questions..."
-                          value={globalSearchQuery}
-                          onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
                           className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none text-sm text-gray-900 dark:text-white transition-all font-medium"
                       />
                   </div>
@@ -501,7 +499,7 @@ const Questions = () => {
                               </div>
                               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No questions found</h3>
                               <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">We couldn't find any questions matching your current filters or search terms.</p>
-                              <button onClick={() => { setFilters({subject:'', difficulty:'', type:''}); setSort('newest'); setGlobalSearchQuery(''); }} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">Clear all filters</button>
+                              <button onClick={() => { setFilters({subject:'', difficulty:'', type:''}); setSort('newest'); setSearchQuery(''); }} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">Clear all filters</button>
                           </div>
                       );
                   })()

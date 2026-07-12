@@ -3,14 +3,13 @@ import { Link } from 'react-router-dom';
 import api from '../utils/axiosConfig';
 import { Files, Search, Filter, Calendar, ChevronRight, Eye, Download, Trash2, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { useSearch } from '../context/SearchContext';
 import { useDebounce } from '../hooks/useDebounce';
 
 const ViewExams = () => {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { globalSearchQuery, setGlobalSearchQuery } = useSearch();
-  const debouncedSearch = useDebounce(globalSearchQuery, 300);
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [selectedExams, setSelectedExams] = useState([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState(null);
@@ -92,8 +91,8 @@ const ViewExams = () => {
                 <input
                     type="text"
                     placeholder="Search exams by title or subject..."
-                    value={globalSearchQuery}
-                    onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm text-gray-900 dark:text-gray-100"
                 />
             </div>

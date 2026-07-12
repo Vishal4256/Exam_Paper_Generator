@@ -3,14 +3,13 @@ import { Clock, Search, Filter, Trash2, Download, RefreshCw, FileText, Calendar,
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/axiosConfig';
-import { useSearch } from '../context/SearchContext';
 import { useDebounce } from '../hooks/useDebounce';
 
 const HistoryDashboard = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { globalSearchQuery, setGlobalSearchQuery } = useSearch();
-  const debouncedSearch = useDebounce(globalSearchQuery, 300);
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [filterSubject, setFilterSubject] = useState('');
   
   const navigate = useNavigate();
@@ -99,8 +98,8 @@ const HistoryDashboard = () => {
           <input 
             type="text" 
             placeholder="Search by filename or subject..." 
-            value={globalSearchQuery}
-            onChange={(e) => setGlobalSearchQuery(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
           />
         </div>
