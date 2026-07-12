@@ -7,6 +7,7 @@ import api from '../utils/axiosConfig';
 const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
+    const [activeAiAction, setActiveAiAction] = useState(null);
 
     // Form State with backward compatibility defaults
     const [formData, setFormData] = useState({
@@ -42,38 +43,108 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
         setFormData({ ...formData, options: newOptions });
     };
 
-    const simulateAiAction = (actionName) => {
+    const handleGenerateQuestion = async () => {
+        if (!formData.subject.trim() || !formData.topic.trim()) {
+            return toast.error("Please enter Subject and Topic first.");
+        }
+        
         setAiLoading(true);
-        toast.info(`${actionName} in progress...`);
-        setTimeout(() => {
-            setAiLoading(false);
-            if (actionName === 'Simplify Question') {
-                setFormData(prev => ({ 
-                    ...prev, 
-                    questionText: prev.questionText + '\n\n[AI: Simplified Version]' 
-                }));
-            }
-            if (actionName === 'Generate Options' && formData.type === 'MCQ') {
+        setActiveAiAction('generate');
+        try {
+            const payload = {
+                subject: formData.subject,
+                topic: formData.topic,
+                difficulty: formData.difficulty,
+                type: formData.type,
+                count: 1
+            };
+            const response = await api.post('/ai/generate', payload);
+            const generated = response.data.questions[0];
+            
+            if (generated) {
                 setFormData(prev => ({
                     ...prev,
-                    options: ['AI Option A', 'AI Option B', 'AI Option C', 'AI Option D']
+                    questionText: generated.questionText,
+                    options: generated.options?.length === 4 ? generated.options : (generated.options?.length > 0 ? [...generated.options, '', '', '', ''].slice(0, 4) : prev.options),
+                    correctAnswer: generated.correctAnswer || '',
+                    explanation: generated.explanation || '',
+                    source: 'ai'
                 }));
+                toast.success('Question generated successfully!');
             }
-            // Mark as AI generated to change button text if we want, but the prompt says:
-            // "If AI generates a question, change Save Question to: Save to Question Bank"
-            // Let's set a flag.
-            if (actionName === 'Generate Question') {
-                 setFormData(prev => ({
-                     ...prev,
-                     source: 'ai',
-                     questionText: 'What is the powerhouse of the cell?',
-                     options: ['Nucleus', 'Mitochondria', 'Ribosome', 'Endoplasmic Reticulum'],
-                     correctAnswer: 'Mitochondria',
-                     explanation: 'Mitochondria generate most of the chemical energy needed to power the cell.'
-                 }));
+        } catch (error) {
+            console.error("Error generating question:", error);
+            toast.error(error.response?.data?.msg || "Failed to generate question. Please try again.");
+        } finally {
+            setAiLoading(false);
+            setActiveAiAction(null);
+        }
+    };
+
+    const handleImproveQuestion = async () => {
+        if (!formData.questionText.trim()) return toast.error("Please enter a question first.");
+        
+        setAiLoading(true);
+        setActiveAiAction('improve');
+        try {
+            const response = await api.post('/ai/improve-question', { questionText: formData.questionText });
+            if (response.data.text) {
+                setFormData(prev => ({ ...prev, questionText: response.data.text }));
+                toast.success('Question improved!');
             }
-            toast.success(`${actionName} completed!`);
-        }, 1500);
+        } catch (error) {
+            toast.error(error.response?.data?.msg || "Failed to improve question.");
+        } finally {
+            setAiLoading(false);
+            setActiveAiAction(null);
+        }
+    };
+
+    const handleSimplifyQuestion = async () => {
+        if (!formData.questionText.trim()) return toast.error("Please enter a question first.");
+        
+        setAiLoading(true);
+        setActiveAiAction('simplify');
+        try {
+            const response = await api.post('/ai/simplify-question', { questionText: formData.questionText });
+            if (response.data.text) {
+                setFormData(prev => ({ ...prev, questionText: response.data.text }));
+                toast.success('Question simplified!');
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.msg || "Failed to simplify question.");
+        } finally {
+            setAiLoading(false);
+            setActiveAiAction(null);
+        }
+    };
+
+    const handleGenerateOptions = async () => {
+        if (!formData.questionText.trim()) return toast.error("Please enter a question first.");
+        if (formData.type !== 'MCQ') return toast.error("Options can only be generated for MCQ type.");
+        
+        setAiLoading(true);
+        setActiveAiAction('options');
+        try {
+            const response = await api.post('/ai/generate-options', { 
+                questionText: formData.questionText,
+                subject: formData.subject,
+                topic: formData.topic
+            });
+            if (response.data.options && response.data.options.length === 4) {
+                setFormData(prev => ({ 
+                    ...prev, 
+                    options: response.data.options,
+                    correctAnswer: response.data.correctAnswer
+                }));
+                toast.success('Options generated!');
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.msg || "Failed to generate options.");
+        } finally {
+            setAiLoading(false);
+            setActiveAiAction(null);
+        }
     };
 
     const handleSave = async (e) => {
@@ -329,39 +400,39 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
                         <div className="space-y-3">
                             <button 
                                 type="button" 
-                                onClick={() => simulateAiAction('Generate Question')} 
+                                onClick={handleGenerateQuestion} 
                                 disabled={aiLoading} 
                                 className="w-full bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-3 rounded-xl text-left font-bold transition-all flex items-center justify-between group disabled:opacity-50"
                             >
                                 Generate Question
-                                <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-all" />
+                                {activeAiAction === 'generate' ? <Sparkles className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-all" />}
                             </button>
                             <button 
                                 type="button" 
-                                onClick={() => simulateAiAction('Improve Question')} 
+                                onClick={handleImproveQuestion} 
                                 disabled={aiLoading || !formData.questionText} 
                                 className="w-full bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-3 rounded-xl text-left font-bold transition-all flex items-center justify-between group disabled:opacity-50"
                             >
                                 Improve Question
-                                <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-all" />
+                                {activeAiAction === 'improve' ? <Sparkles className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-all" />}
                             </button>
                             <button 
                                 type="button" 
-                                onClick={() => simulateAiAction('Simplify Question')} 
+                                onClick={handleSimplifyQuestion} 
                                 disabled={aiLoading || !formData.questionText} 
                                 className="w-full bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-3 rounded-xl text-left font-bold transition-all flex items-center justify-between group disabled:opacity-50"
                             >
                                 Simplify Question
-                                <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-all" />
+                                {activeAiAction === 'simplify' ? <Sparkles className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-all" />}
                             </button>
                             <button 
                                 type="button" 
-                                onClick={() => simulateAiAction('Generate Options')} 
+                                onClick={handleGenerateOptions} 
                                 disabled={aiLoading || formData.type !== 'MCQ'} 
                                 className="w-full bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-3 rounded-xl text-left font-bold transition-all flex items-center justify-between group disabled:opacity-50"
                             >
                                 Generate Options
-                                <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-all" />
+                                {activeAiAction === 'options' ? <Sparkles className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-all" />}
                             </button>
                         </div>
                         <p className="mt-6 text-indigo-200 text-sm font-medium">

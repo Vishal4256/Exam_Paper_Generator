@@ -91,4 +91,100 @@ const generateAIQuestions = async (req, res) => {
     }
 };
 
-export { generateAIQuestions };
+const improveQuestion = async (req, res) => {
+    try {
+        const { questionText } = req.body;
+        if (!questionText) return res.status(400).json({ msg: "Please provide question text." });
+
+        let geminiKey = process.env.GEMINI_API_KEY;
+        if (!geminiKey || geminiKey === 'your_api_key_here') return res.status(400).json({ msg: "Gemini API key not configured." });
+
+        const prompt = `
+            Improve the following academic question. Fix any grammar issues, clarify the wording, and ensure it sounds professional. 
+            Do NOT change the underlying meaning or the correct answer. 
+            Return ONLY the updated question text, nothing else.
+            
+            Question: ${questionText}
+        `;
+
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        
+        res.status(200).json({ success: true, text: response.text.trim() });
+    } catch (error) {
+        console.error("Error improving question:", error);
+        res.status(500).json({ msg: "Unable to improve question.", error: error.message });
+    }
+};
+
+const simplifyQuestion = async (req, res) => {
+    try {
+        const { questionText } = req.body;
+        if (!questionText) return res.status(400).json({ msg: "Please provide question text." });
+
+        let geminiKey = process.env.GEMINI_API_KEY;
+        if (!geminiKey || geminiKey === 'your_api_key_here') return res.status(400).json({ msg: "Gemini API key not configured." });
+
+        const prompt = `
+            Rewrite the following academic question in simpler, easier-to-understand language. 
+            Keep the exact same underlying meaning and ensure the correct answer remains the same.
+            Return ONLY the updated question text, nothing else.
+            
+            Question: ${questionText}
+        `;
+
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        
+        res.status(200).json({ success: true, text: response.text.trim() });
+    } catch (error) {
+        console.error("Error simplifying question:", error);
+        res.status(500).json({ msg: "Unable to simplify question.", error: error.message });
+    }
+};
+
+const generateOptions = async (req, res) => {
+    try {
+        const { questionText, subject, topic } = req.body;
+        if (!questionText) return res.status(400).json({ msg: "Please provide question text." });
+
+        let geminiKey = process.env.GEMINI_API_KEY;
+        if (!geminiKey || geminiKey === 'your_api_key_here') return res.status(400).json({ msg: "Gemini API key not configured." });
+
+        const prompt = `
+            You are an expert academic question generator. 
+            Given the following question, generate exactly 4 plausible Multiple Choice options.
+            Ensure there is exactly ONE undeniably correct answer.
+            Subject Context: ${subject || 'General'}
+            Topic Context: ${topic || 'General'}
+            
+            Question: ${questionText}
+            
+            Return the response strictly as a JSON object matching this schema:
+            {
+                "options": ["Option A", "Option B", "Option C", "Option D"],
+                "correctAnswer": "The exact string from options that is correct"
+            }
+            Do not include any markdown formatting (like \`\`\`json) or extra text.
+        `;
+
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        
+        let aiText = response.text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        
+        let data;
+        try {
+            data = JSON.parse(aiText);
+        } catch (err) {
+            return res.status(500).json({ msg: "AI responded with invalid format." });
+        }
+
+        res.status(200).json({ success: true, options: data.options, correctAnswer: data.correctAnswer });
+    } catch (error) {
+        console.error("Error generating options:", error);
+        res.status(500).json({ msg: "Unable to generate options.", error: error.message });
+    }
+};
+
+export { generateAIQuestions, improveQuestion, simplifyQuestion, generateOptions };
