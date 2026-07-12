@@ -1,10 +1,15 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
@@ -19,13 +24,15 @@ export const sendVerificationEmail = async (email, otp) => {
 </div>
 `;
     await transporter.sendMail({
-      from: `"${process.env.APP_NAME || 'ExamFlow'}" <${process.env.EMAIL_USER}>`,
+      from: `"ExamFlow" <${process.env.EMAIL_FROM}>`,
       to: email,
       subject: "Verify Your Email - ExamFlow",
       html: html,
     });
+    console.log(`✓ Email sent successfully to ${email}`);
     return { success: true };
   } catch (error) {
+    console.error(`✗ Email sending failed:\n${error.message}`);
     return { success: false, error: error.message };
   }
 };
@@ -55,13 +62,15 @@ export const sendPasswordResetLink = async (email, resetLink) => {
 </div>
 `;
     await transporter.sendMail({
-      from: `"${process.env.APP_NAME || 'ExamFlow'}" <${process.env.EMAIL_USER}>`,
+      from: `"ExamFlow" <${process.env.EMAIL_FROM}>`,
       to: email,
       subject: "Reset Your Password - ExamFlow",
       html: html,
     });
+    console.log(`✓ Email sent successfully to ${email}`);
     return { success: true };
   } catch (error) {
+    console.error(`✗ Email sending failed:\n${error.message}`);
     return { success: false, error: error.message };
   }
 };

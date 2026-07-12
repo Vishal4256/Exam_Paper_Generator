@@ -4,6 +4,9 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Load environment variables before anything else
+dotenv.config();
+
 import connectDB from './src/db/connection.db.js';
 
 import authRoutes from './src/routes/auth.route.js';
@@ -18,8 +21,6 @@ import importRoutes from './src/routes/importRoutes.js';
 import jobRoutes from './src/routes/jobRoutes.js';
 import draftRoutes from './src/routes/draftRoutes.js';
 import historyRoutes from './src/routes/historyRoutes.js';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

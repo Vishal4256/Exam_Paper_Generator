@@ -19,10 +19,7 @@ const register = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         // Send OTP email before creating user/pending user
-        const emailResult = await sendVerificationEmail(email, otp);
-        if (!emailResult.success) {
-            console.error("Email sending failed:", emailResult.error);
-        }
+        await sendVerificationEmail(email, otp);
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -92,10 +89,7 @@ const resendOTP = async (req, res) => {
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         
-        const emailResult = await sendVerificationEmail(email, otp);
-        if (!emailResult.success) {
-            console.error("Email sending failed:", emailResult.error);
-        }
+        await sendVerificationEmail(email, otp);
 
         pendingUser.otp = otp;
         pendingUser.otpExpires = Date.now() + 10 * 60 * 1000;
@@ -149,10 +143,7 @@ const forgotPassword = async (req, res) => {
         const resetLink = `${frontendUrl}/reset-password/${token}`;
 
         // Send Email
-        const emailResult = await sendPasswordResetLink(email, resetLink);
-        if (!emailResult.success) {
-            console.error("Email sending failed:", emailResult.error);
-        }
+        await sendPasswordResetLink(email, resetLink);
 
         res.status(200).json({
             msg: "Password reset link sent to your email"
