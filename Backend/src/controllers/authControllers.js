@@ -11,7 +11,7 @@ const register = async (req, res) => {
         console.log("STEP 1 - Register request received");
         const { name, email, password } = req.body;
 
-        console.log("STEP 2 - Input validated"); // assuming express middleware handles raw validation
+        console.log("STEP 2 - Input validated"); 
 
         const existingUser = await User.findOne({ email });
         console.log("STEP 3 - Existing user checked");
@@ -40,21 +40,17 @@ const register = async (req, res) => {
         await pendingUser.save();
         console.log("STEP 5 - Pending user saved");
         
-        console.log("STEP 9 - Returning success response");
-        res.status(200).json({ success: true, message: "Registration successful. OTP is being sent.", email });
-
         console.log("STEP 6 - Preparing email");
-        console.log("STEP 7 - Calling sendVerificationEmail() in background");
-        sendVerificationEmail(email, otp).then(result => {
-            console.log("STEP 8 - Email completed in background");
-            if (!result.success) {
-                console.error("Email sending failed:", result.error);
-            }
-        }).catch(err => {
-            console.error(`ERROR in register() STEP 8 Email background task: ${err.message}\n${err.stack}`);
-        });
+        console.log("STEP 7 - Calling sendVerificationEmail()");
+        const result = await sendVerificationEmail(email, otp);
+        if (!result.success) {
+            console.error(result.error);
+        }
+        console.log("STEP 8 - Email completed");
 
-        return; // explicitly return after sending response
+        console.log("STEP 9 - Returning success response");
+        return res.status(200).json({ success: true, message: "OTP sent to email. Please verify.", email });
+
     } catch (err) {
         console.error(`ERROR in register(): ${err.message}\n${err.stack}`);
         return res.status(500).json({ success: false, msg: "Registration Failed: " + err.message, message: err.message });
@@ -112,20 +108,16 @@ const resendOTP = async (req, res) => {
         await pendingUser.save();
         console.log("STEP 2 - Pending user updated with new OTP");
 
-        res.status(200).json({ success: true, message: "OTP resent successfully." });
+        console.log("STEP 4 - Calling sendVerificationEmail()");
+        const result = await sendVerificationEmail(email, otp);
+        if (!result.success) {
+            console.error(result.error);
+        }
+        console.log("STEP 5 - Email completed");
+
         console.log("STEP 3 - Response sent");
+        return res.status(200).json({ success: true, message: "OTP resent successfully." });
 
-        console.log("STEP 4 - Calling sendVerificationEmail() in background");
-        sendVerificationEmail(email, otp).then(result => {
-             console.log("STEP 5 - Email completed in background");
-             if (!result.success) {
-                 console.error("Email sending failed:", result.error);
-             }
-        }).catch(err => {
-             console.error(`ERROR in resendOTP() STEP 5 Email background task: ${err.message}\n${err.stack}`);
-        });
-
-        return; // explicitly return after sending response
     } catch (err) {
         console.error(`ERROR in resendOTP(): ${err.message}\n${err.stack}`);
         return res.status(500).json({ success: false, msg: "Failed to resend OTP: " + err.message, message: "Failed to resend OTP: " + err.message });
@@ -172,23 +164,19 @@ const forgotPassword = async (req, res) => {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const resetLink = `${frontendUrl}/reset-password/${token}`;
 
-        res.status(200).json({
+        // Send Email
+        console.log("STEP 4 - Calling sendPasswordResetLink()");
+        const result = await sendPasswordResetLink(email, resetLink);
+        if (!result.success) {
+            console.error(result.error);
+        }
+        console.log("STEP 5 - Email completed");
+
+        console.log("STEP 3 - Response sent");
+        return res.status(200).json({
             msg: "Password reset link sent to your email"
         });
-        console.log("STEP 3 - Response sent");
 
-        // Send Email
-        console.log("STEP 4 - Calling sendPasswordResetLink() in background");
-        sendPasswordResetLink(email, resetLink).then(result => {
-            console.log("STEP 5 - Email completed in background");
-            if (!result.success) {
-                console.error("Email sending failed:", result.error);
-            }
-        }).catch(err => {
-            console.error(`ERROR in forgotPassword() STEP 5 Email background task: ${err.message}\n${err.stack}`);
-        });
-
-        return; // explicitly return after sending response
     } catch (err) {
         console.error(`ERROR in forgotPassword(): ${err.message}\n${err.stack}`);
         return res.status(500).json({ msg: "Server Error: " + err.message });

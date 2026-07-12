@@ -1,59 +1,84 @@
-import nodemailer from "nodemailer";
+import axios from "axios";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-});
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 export const sendVerificationEmail = async (email, otp) => {
   try {
-    const html = `
+    console.log(`Email request started for verification: ${email}`);
+
+    const htmlContent = `
 <div style="font-family: Arial, sans-serif;">
-  <h2>Email Verification - ExamFlow</h2>
   <p>Your OTP is:</p>
+  <br>
   <h1 style="color:#4f46e5;">${otp}</h1>
+  <br>
   <p>This OTP expires in 10 minutes.</p>
 </div>
 `;
-    const sendMailPromise = transporter.sendMail({
-      from: `"ExamFlow" <${process.env.EMAIL_FROM}>`,
-      to: email,
+
+    const payload = {
+      sender: {
+        name: "ExamFlow",
+        email: process.env.EMAIL_FROM || "vishal42564256@gmail.com"
+      },
+      to: [{ email: email }],
       subject: "Verify Your Email - ExamFlow",
-      html: html,
+      htmlContent: htmlContent
+    };
+
+    console.log("========== BREVO REQUEST ==========");
+    console.log("BREVO_API_KEY exists:", !!process.env.BREVO_API_KEY);
+    console.log("BREVO_API_KEY Prefix:", process.env.BREVO_API_KEY?.substring(0, 10));
+    console.log("EMAIL_FROM:", process.env.EMAIL_FROM);
+    console.log("Recipient:", email);
+    console.log("Payload:", JSON.stringify(payload, null, 2));
+    console.log("===================================");
+
+    const response = await axios.post(BREVO_API_URL, payload, {
+      headers: {
+        "api-key": process.env.BREVO_API_KEY,
+        "Content-Type": "application/json"
+      }
     });
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Email timeout")), 10000)
-    );
-
-    await Promise.race([sendMailPromise, timeoutPromise]);
-    
+    console.log(`Brevo API response: HTTP ${response.status}`);
     console.log(`✓ Email sent successfully to ${email}`);
+    
     return { success: true };
   } catch (error) {
-    console.error(`✗ Email sending failed:\n${error.message}`);
-    return { success: false, error: error.message };
+    console.log("========== BREVO ERROR ==========");
+    console.log("Status:", error.response?.status);
+    console.log(
+        "Response Data:",
+        JSON.stringify(error.response?.data, null, 2)
+    );
+    console.log(
+        "Headers:",
+        JSON.stringify(error.response?.headers, null, 2)
+    );
+    console.log("Message:", error.message);
+    console.log("Stack:", error.stack);
+    console.log("================================");
+
+    return {
+        success: false,
+        error: error.response?.data || error.message
+    };
   }
 };
 
 export const sendPasswordResetLink = async (email, resetLink) => {
   try {
-    const html = `
+    console.log(`Email request started for password reset: ${email}`);
+
+    const htmlContent = `
 <div style="font-family: Arial, sans-serif;">
   <h2>Reset Your Password</h2>
   <p>Click the button below to reset your password:</p>
-
+  <br>
   <a
     href="${resetLink}"
     style="
@@ -67,27 +92,58 @@ export const sendPasswordResetLink = async (email, resetLink) => {
   >
     Reset Password
   </a>
-
+  <br>
   <p>If you did not request this, ignore this email.</p>
 </div>
 `;
-    const sendMailPromise = transporter.sendMail({
-      from: `"ExamFlow" <${process.env.EMAIL_FROM}>`,
-      to: email,
+
+    const payload = {
+      sender: {
+        name: "ExamFlow",
+        email: process.env.EMAIL_FROM || "vishal42564256@gmail.com"
+      },
+      to: [{ email: email }],
       subject: "Reset Your Password - ExamFlow",
-      html: html,
+      htmlContent: htmlContent
+    };
+
+    console.log("========== BREVO REQUEST ==========");
+    console.log("BREVO_API_KEY exists:", !!process.env.BREVO_API_KEY);
+    console.log("BREVO_API_KEY Prefix:", process.env.BREVO_API_KEY?.substring(0, 10));
+    console.log("EMAIL_FROM:", process.env.EMAIL_FROM);
+    console.log("Recipient:", email);
+    console.log("Payload:", JSON.stringify(payload, null, 2));
+    console.log("===================================");
+
+    const response = await axios.post(BREVO_API_URL, payload, {
+      headers: {
+        "api-key": process.env.BREVO_API_KEY,
+        "Content-Type": "application/json"
+      }
     });
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Email timeout")), 10000)
-    );
-
-    await Promise.race([sendMailPromise, timeoutPromise]);
-
+    console.log(`Brevo API response: HTTP ${response.status}`);
     console.log(`✓ Email sent successfully to ${email}`);
+    
     return { success: true };
   } catch (error) {
-    console.error(`✗ Email sending failed:\n${error.message}`);
-    return { success: false, error: error.message };
+    console.log("========== BREVO ERROR ==========");
+    console.log("Status:", error.response?.status);
+    console.log(
+        "Response Data:",
+        JSON.stringify(error.response?.data, null, 2)
+    );
+    console.log(
+        "Headers:",
+        JSON.stringify(error.response?.headers, null, 2)
+    );
+    console.log("Message:", error.message);
+    console.log("Stack:", error.stack);
+    console.log("================================");
+
+    return {
+        success: false,
+        error: error.response?.data || error.message
+    };
   }
 };
