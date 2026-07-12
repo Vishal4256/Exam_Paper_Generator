@@ -3,14 +3,17 @@ import api from '../utils/axiosConfig';
 import { Search, Plus, Filter, Trash2, Edit2, ChevronLeft, ChevronRight, Check, Download, Upload, X, MoreVertical, Layers, SortAsc, FileText, ListFilter } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Papa from 'papaparse';
+import AddQuestionWorkspace from '../components/AddQuestionWorkspace';
+import { useSearch } from '../context/SearchContext';
 
 const Questions = () => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   
-  const [filters, setFilters] = useState({ subject: '', difficulty: '', type: '', search: '' });
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [filters, setFilters] = useState({ subject: '', difficulty: '', type: '' });
+  const { globalSearchQuery, setGlobalSearchQuery } = useSearch();
+  const [debouncedSearch, setDebouncedSearch] = useState(globalSearchQuery);
   const [sort, setSort] = useState('newest');
   
   const handleFilterChange = (field, value) => {
@@ -49,11 +52,11 @@ const Questions = () => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearch(filters.search);
+      setDebouncedSearch(globalSearchQuery);
       setPagination(p => ({ ...p, page: 1 }));
     }, 300);
     return () => clearTimeout(handler);
-  }, [filters.search]);
+  }, [globalSearchQuery]);
 
   useEffect(() => {
     fetchQuestions();
@@ -245,57 +248,7 @@ const Questions = () => {
       }
   };
 
-  const handleAddSubmit = async (e, status = 'active') => {
-    if (e) e.preventDefault();
-    
-    if (!newQuestion.questionText.trim()) return toast.error('Question text is required');
-    if (!newQuestion.subject.trim()) return toast.error('Subject is required');
-    
-    if (newQuestion.type === 'MCQ') {
-        const filledOptions = newQuestion.options.filter(o => o.trim() !== '');
-        if (filledOptions.length < 2) return toast.error('At least 2 options are required for MCQ');
-        if (!newQuestion.correctAnswer && status === 'active') return toast.error('Please select the correct answer');
-    } else {
-        if (!newQuestion.correctAnswer.trim() && status === 'active') return toast.error('Answer / Rubric is required');
-    }
 
-    try {
-      const formData = new FormData();
-      formData.append('questionText', newQuestion.questionText);
-      formData.append('subject', newQuestion.subject);
-      formData.append('difficulty', newQuestion.difficulty);
-      formData.append('type', newQuestion.type);
-      formData.append('required', newQuestion.required);
-      formData.append('shuffleOptions', newQuestion.shuffleOptions);
-      formData.append('status', status);
-      formData.append('bloomLevel', newQuestion.bloomLevel);
-      
-      if (newQuestion.type === 'MCQ') {
-          formData.append('options', JSON.stringify(newQuestion.options));
-          formData.append('correctAnswer', newQuestion.correctAnswer);
-      } else {
-          formData.append('correctAnswer', newQuestion.correctAnswer);
-      }
-
-      if (editingId) {
-          await api.put(`/questions/${editingId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-          toast.success('Question updated successfully!');
-      } else {
-          await api.post('/questions', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-          toast.success(status === 'draft' ? 'Draft saved successfully!' : 'Question added successfully!');
-      }
-      
-      setNewQuestion({
-        questionText: '', subject: '', difficulty: 'Medium', type: 'MCQ', options: ['', '', '', ''], correctAnswer: '', required: true, shuffleOptions: false, bloomLevel: 'Remember'
-      });
-      setIsAddOpen(false);
-      setEditingId(null);
-      fetchQuestions();
-    } catch (err) {
-      console.error('Error adding question:', err);
-      toast.error('Failed to add question');
-    }
-  };
 
   const handleEdit = (q) => {
     setNewQuestion({
@@ -332,82 +285,15 @@ const Questions = () => {
 
   if (isAddOpen) {
       return (
-        <div className="max-w-[1400px] mx-auto pb-8 px-4">
-            <div className="mb-6 flex items-center gap-2 text-sm text-gray-500 font-semibold">
-                <button onClick={() => setIsAddOpen(false)} className="hover:text-indigo-600">Questions</button>
-                <ChevronRight className="w-4 h-4" />
-                <span className="text-gray-900 dark:text-white">{editingId ? 'Edit Question' : 'Add New Question'}</span>
-            </div>
-            
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create Academic Content</h1>
-            </div>
-
-            <form onSubmit={handleAddSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-2">Question Type</label>
-                            <select value={newQuestion.type} onChange={(e) => setNewQuestion({...newQuestion, type: e.target.value})} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm dark:text-white outline-none focus:ring-2 focus:ring-indigo-100">
-                                <option value="MCQ">Multiple Choice (MCQ)</option>
-                                <option value="Short Answer">Short Answer</option>
-                                <option value="Long Answer">Long Answer</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-2">Subject</label>
-                            <input type="text" list="subject-options" value={newQuestion.subject} onChange={(e) => setNewQuestion({...newQuestion, subject: e.target.value})} placeholder="e.g. Mathematics" className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm dark:text-white outline-none focus:ring-2 focus:ring-indigo-100" required />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-2">Difficulty</label>
-                            <select value={newQuestion.difficulty} onChange={(e) => setNewQuestion({...newQuestion, difficulty: e.target.value})} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm dark:text-white outline-none focus:ring-2 focus:ring-indigo-100">
-                                <option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-2">Bloom's Level</label>
-                            <select value={newQuestion.bloomLevel} onChange={(e) => setNewQuestion({...newQuestion, bloomLevel: e.target.value})} className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm dark:text-white outline-none focus:ring-2 focus:ring-indigo-100">
-                                <option value="Remember">Remember</option><option value="Understand">Understand</option><option value="Apply">Apply</option>
-                                <option value="Analyze">Analyze</option><option value="Evaluate">Evaluate</option><option value="Create">Create</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <textarea required value={newQuestion.questionText} onChange={(e) => setNewQuestion({...newQuestion, questionText: e.target.value})} placeholder="Type your question here..." className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-4 text-sm h-32 outline-none focus:ring-2 focus:ring-indigo-100 resize-none dark:text-white" />
-                    </div>
-
-                    {newQuestion.type === 'MCQ' ? (
-                        <div className="space-y-3">
-                            {newQuestion.options.map((opt, i) => (
-                                <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border ${newQuestion.correctAnswer === opt && opt ? 'border-indigo-600 bg-indigo-50/30' : 'border-gray-200 dark:border-gray-700'}`}>
-                                    <input type="radio" name="correctOpt" checked={newQuestion.correctAnswer === opt && opt} onChange={() => setNewQuestion({...newQuestion, correctAnswer: opt})} />
-                                    <input type="text" placeholder={`Option ${String.fromCharCode(65+i)}`} value={opt} onChange={(e) => {
-                                        const newOpts = [...newQuestion.options];
-                                        newOpts[i] = e.target.value;
-                                        setNewQuestion({...newQuestion, options: newOpts});
-                                    }} required className="flex-1 bg-transparent outline-none text-sm dark:text-white" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Correct Answer / Key Points</label>
-                            <textarea required value={newQuestion.correctAnswer} onChange={(e) => setNewQuestion({...newQuestion, correctAnswer: e.target.value})} placeholder="Expected answer..." className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-4 text-sm h-24 outline-none focus:ring-2 dark:text-white" />
-                        </div>
-                    )}
-                </div>
-
-                <div className="space-y-6">
-                    <button type="submit" onClick={(e) => handleAddSubmit(e, 'active')} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors">
-                        {editingId ? 'Update Question' : 'Add to Bank'}
-                    </button>
-                    <button type="button" onClick={() => setIsAddOpen(false)} className="w-full text-gray-500 font-bold py-3 hover:text-gray-700 transition-colors">
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
+          <AddQuestionWorkspace 
+              editingId={editingId}
+              initialData={newQuestion}
+              onClose={() => {
+                  setIsAddOpen(false);
+                  setEditingId(null);
+                  fetchQuestions();
+              }}
+          />
       );
   }
 
@@ -528,8 +414,8 @@ const Questions = () => {
                       <input
                           type="text"
                           placeholder="Search questions..."
-                          value={filters.search}
-                          onChange={(e) => setFilters({...filters, search: e.target.value})}
+                          value={globalSearchQuery}
+                          onChange={(e) => setGlobalSearchQuery(e.target.value)}
                           className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none text-sm text-gray-900 dark:text-white transition-all font-medium"
                       />
                   </div>
@@ -600,7 +486,7 @@ const Questions = () => {
                               </div>
                               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No questions found</h3>
                               <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">We couldn't find any questions matching your current filters or search terms.</p>
-                              <button onClick={() => { setFilters({subject:'', difficulty:'', type:'', search:''}); setSort('newest'); setDebouncedSearch(''); }} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">Clear all filters</button>
+                              <button onClick={() => { setFilters({subject:'', difficulty:'', type:''}); setSort('newest'); setGlobalSearchQuery(''); }} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">Clear all filters</button>
                           </div>
                       );
                   })()

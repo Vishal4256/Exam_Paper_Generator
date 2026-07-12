@@ -3,24 +3,30 @@ import { Clock, Search, Filter, Trash2, Download, RefreshCw, FileText, Calendar,
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/axiosConfig';
+import { useSearch } from '../context/SearchContext';
+import { useDebounce } from '../hooks/useDebounce';
 
 const HistoryDashboard = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const { globalSearchQuery, setGlobalSearchQuery } = useSearch();
+  const debouncedSearch = useDebounce(globalSearchQuery, 300);
   const [filterSubject, setFilterSubject] = useState('');
   
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchHistory();
-  }, [filterSubject]);
+  }, [filterSubject, debouncedSearch]);
 
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const url = filterSubject ? `/history?subject=${filterSubject}` : '/history';
-      const res = await api.get(url);
+      const params = {};
+      if (filterSubject) params.subject = filterSubject;
+      if (debouncedSearch) params.search = debouncedSearch;
+      
+      const res = await api.get('/history', { params });
       setHistory(res.data.history);
     } catch (error) {
       toast.error("Failed to load history");
@@ -71,10 +77,7 @@ const HistoryDashboard = () => {
     }
   };
 
-  const filteredHistory = history.filter(h => 
-    h.fileName.toLowerCase().includes(search.toLowerCase()) || 
-    (h.subject || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredHistory = history;
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -96,8 +99,8 @@ const HistoryDashboard = () => {
           <input 
             type="text" 
             placeholder="Search by filename or subject..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={globalSearchQuery}
+            onChange={(e) => setGlobalSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
           />
         </div>

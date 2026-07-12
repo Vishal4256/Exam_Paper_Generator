@@ -3,7 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useAuth } from '../context/AuthContext';
-
+import { SearchProvider } from '../context/SearchContext';
 const DashboardLayout = () => {
   const { user, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -21,18 +21,20 @@ const DashboardLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex text-gray-900 dark:text-gray-100 overflow-x-hidden">
-      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-      
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen md:pl-64 w-full">
-        <Header setIsSidebarOpen={setIsSidebarOpen} />
+    <SearchProvider>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex text-gray-900 dark:text-gray-100 overflow-x-hidden">
+        <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
         
-        {/* Main Content Area */}
-        <main className="flex-1 p-4 md:p-6 lg:p-8 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-80px)] text-gray-900 dark:text-gray-100 overflow-x-hidden w-full">
-          <Outlet />
-        </main>
+        <div className="flex-1 flex flex-col min-w-0 min-h-screen md:pl-64 w-full">
+          <Header setIsSidebarOpen={setIsSidebarOpen} />
+          
+          {/* Main Content Area */}
+          <main className="flex-1 p-4 md:p-6 lg:p-8 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-80px)] text-gray-900 dark:text-gray-100 overflow-x-hidden w-full">
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </SearchProvider>
   );
 };
 

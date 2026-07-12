@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { UploadCloud, FileText, Image as ImageIcon, Loader2, Save, Download, RefreshCw, Trash2, CheckCircle, FileOutput, FilePlus2, BarChart2, FileUp, Sparkles, Copy, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import api from '../utils/axiosConfig';
 import { toast } from 'react-toastify';
+import { useSearch } from '../context/SearchContext';
 
 const AIImport = () => {
   const [activeTab, setActiveTab] = useState('pdf');
@@ -43,6 +44,23 @@ const AIImport = () => {
 
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [expandedComparisons, setExpandedComparisons] = useState(new Set());
+  
+  const { globalSearchQuery } = useSearch();
+
+  const filteredFiles = React.useMemo(() => {
+    if (!globalSearchQuery) return files;
+    const q = globalSearchQuery.toLowerCase();
+    return files.filter(f => f.name.toLowerCase().includes(q));
+  }, [files, globalSearchQuery]);
+
+  const filteredQuestions = React.useMemo(() => {
+    if (!globalSearchQuery) return generatedQuestions;
+    const q = globalSearchQuery.toLowerCase();
+    return generatedQuestions.filter(question => 
+      (question.questionText && question.questionText.toLowerCase().includes(q)) ||
+      (question.subject && question.subject.toLowerCase().includes(q))
+    );
+  }, [generatedQuestions, globalSearchQuery]);
 
   useEffect(() => {
     const sessionStr = localStorage.getItem('ai_session_state');
@@ -550,13 +568,15 @@ const AIImport = () => {
             <p className="text-xs md:text-sm text-gray-500 mt-2">Max file size: 10MB per file</p>
           </div>
 
-          {files.length > 0 && (
+          {filteredFiles.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Selected Files ({files.length})</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Selected Files ({filteredFiles.length})</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {files.map((file, i) => (
+                {filteredFiles.map((file, i) => {
+                  const originalIndex = files.findIndex(f => f === file);
+                  return (
                   <div key={i} className="flex flex-col p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 relative group">
-                    <button onClick={() => removeFile(i)} className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
+                    <button onClick={() => removeFile(originalIndex)} className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
                       <X className="w-4 h-4" />
                     </button>
                     <div className="flex items-center gap-3 mb-2 pr-6">
@@ -567,7 +587,8 @@ const AIImport = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               
               {isExtracting && jobStatus && (
@@ -798,14 +819,15 @@ const AIImport = () => {
             </div>
           </div>
 
-          {generatedQuestions.length === 0 ? (
+          {filteredQuestions.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-              <p className="text-gray-500">No questions generated yet.</p>
+              <p className="text-gray-500">No questions found.</p>
               <button onClick={() => setActiveTab('preview')} className="mt-4 text-indigo-600 font-medium hover:underline">Go to Extracted Text</button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {generatedQuestions.map((q, idx) => {
+              {filteredQuestions.map((q, filteredIdx) => {
+                const idx = generatedQuestions.findIndex(orig => orig === q);
                 const isSelected = selectedQuestions.has(idx);
                 return (
                   <div key={idx} className={`bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border-2 transition-all flex flex-col group relative ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300'}`}>

@@ -114,7 +114,16 @@ const getQuestions = async (req, res) => {
         if (difficulty && difficulty !== 'All') query.difficulty = difficulty;
         if (type && type !== 'All') query.type = type;
         if (search) {
-            query.questionText = { $regex: search, $options: 'i' };
+            const regex = new RegExp(search, 'i');
+            query.$or = [
+                { questionText: regex },
+                { subject: regex },
+                { topic: regex },
+                { difficulty: regex },
+                { type: regex },
+                { bloomLevel: regex },
+                { tags: regex }
+            ];
         }
         
         const sortOptions = {

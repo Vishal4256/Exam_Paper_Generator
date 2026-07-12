@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom';
 import api from '../utils/axiosConfig';
 import { Files, Search, Filter, Calendar, ChevronRight, Eye, Download, Trash2, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useSearch } from '../context/SearchContext';
+import { useDebounce } from '../hooks/useDebounce';
 
 const ViewExams = () => {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const { globalSearchQuery, setGlobalSearchQuery } = useSearch();
+  const debouncedSearch = useDebounce(globalSearchQuery, 300);
   const [selectedExams, setSelectedExams] = useState([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState(null);
@@ -15,11 +18,13 @@ const ViewExams = () => {
 
   useEffect(() => {
     fetchExams();
-  }, []);
+  }, [debouncedSearch]);
 
   const fetchExams = async () => {
     try {
-      const res = await api.get('/exams');
+      setLoading(true);
+      const queryParam = debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '';
+      const res = await api.get(`/exams${queryParam}`);
       setExams(res.data);
     } catch (err) {
       console.error('Error fetching exams:', err);
@@ -76,10 +81,7 @@ const ViewExams = () => {
     }
   };
 
-  const filteredExams = exams.filter(exam => 
-    exam.examTitle?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    exam.subject?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredExams = exams;
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -90,8 +92,8 @@ const ViewExams = () => {
                 <input
                     type="text"
                     placeholder="Search exams by title or subject..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    value={globalSearchQuery}
+                    onChange={(e) => setGlobalSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm text-gray-900 dark:text-gray-100"
                 />
             </div>

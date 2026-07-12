@@ -185,7 +185,16 @@ const generateExam = async (req, res) => {
 // Get all exams for the logged-in user
 const getExams = async (req, res) => {
     try {
-        const exams = await Exam.find({ user: req.user.id })
+        const query = { user: req.user.id };
+        if (req.query.search) {
+            const regex = new RegExp(req.query.search, 'i');
+            query.$or = [
+                { examTitle: regex },
+                { subject: regex }
+            ];
+        }
+
+        const exams = await Exam.find(query)
             .populate('questions')
             .populate('sectionedQuestions.questions')
             .sort({ generatedAt: -1 });

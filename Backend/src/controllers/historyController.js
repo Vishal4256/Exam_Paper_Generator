@@ -5,6 +5,15 @@ export const getHistory = async (req, res) => {
         const query = { user: req.user.id };
         if (req.query.subject) query.subject = new RegExp(req.query.subject, 'i');
         
+        if (req.query.search) {
+            const regex = new RegExp(req.query.search, 'i');
+            query.$or = [
+                { fileName: regex },
+                { fileType: regex },
+                { subject: regex }
+            ];
+        }
+
         const history = await ImportHistory.find(query).sort({ createdAt: -1 });
         res.status(200).json({ success: true, history });
     } catch (error) {
