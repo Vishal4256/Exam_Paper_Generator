@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/axiosConfig';
 import { useSearch } from '../context/SearchContext';
-import { Sparkles, Save, RefreshCw, BookOpen, Layers, BarChart, Target, List } from 'lucide-react';
+import { Sparkles, Save, RefreshCw, BookOpen, Layers, BarChart, Target, List, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const AIGenerator = () => {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         subject: '',
         topic: '',
@@ -66,8 +68,9 @@ const AIGenerator = () => {
                 source: 'ai'
             }));
             await api.post('/questions/bulk', { questions: questionsToSave });
-            toast.success('All questions saved to Question Bank!');
+            toast.success('Question added successfully.');
             setGeneratedQuestions([]);
+            navigate('/questions');
         } catch (err) {
             toast.error('Failed to save some or all questions.');
         } finally {
@@ -111,9 +114,14 @@ const AIGenerator = () => {
 
     return (
         <div className="max-w-[1400px] mx-auto pb-8">
-            <div className="mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">AI Question Generator</h1>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Harness the power of AI to instantly create high-quality academic questions.</p>
+            <div className="mb-8 flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">AI Question Generator</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Harness the power of AI to instantly create high-quality academic questions.</p>
+                </div>
+                <Link to="/questions?manual=true" className="w-full sm:w-auto justify-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+                    <Plus className="w-4 h-4" /> Create Manually
+                </Link>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -320,6 +328,69 @@ const AIGenerator = () => {
                                                         )}
                                                     </div>
                                                     
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
+                                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Subject</div>
+                                                            {editingIndex === idx ? (
+                                                                <input 
+                                                                    type="text" 
+                                                                    className="w-full text-xs font-bold text-gray-900 dark:text-white p-1 border dark:border-gray-600 rounded bg-transparent outline-none"
+                                                                    value={q.subject || ''}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...generatedQuestions];
+                                                                        updated[idx].subject = e.target.value;
+                                                                        setGeneratedQuestions(updated);
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <p className="text-xs font-bold text-gray-900 dark:text-white">{q.subject || '-'}</p>
+                                                            )}
+                                                        </div>
+                                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Difficulty</div>
+                                                            {editingIndex === idx ? (
+                                                                <select 
+                                                                    className="w-full text-xs font-bold text-gray-900 dark:text-white p-1 border dark:border-gray-600 rounded bg-transparent outline-none"
+                                                                    value={q.difficulty || 'Medium'}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...generatedQuestions];
+                                                                        updated[idx].difficulty = e.target.value;
+                                                                        setGeneratedQuestions(updated);
+                                                                    }}
+                                                                >
+                                                                    <option value="Easy">Easy</option>
+                                                                    <option value="Medium">Medium</option>
+                                                                    <option value="Hard">Hard</option>
+                                                                </select>
+                                                            ) : (
+                                                                <p className="text-xs font-bold text-gray-900 dark:text-white">{q.difficulty || 'Medium'}</p>
+                                                            )}
+                                                        </div>
+                                                        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Bloom's Level</div>
+                                                            {editingIndex === idx ? (
+                                                                <select 
+                                                                    className="w-full text-xs font-bold text-gray-900 dark:text-white p-1 border dark:border-gray-600 rounded bg-transparent outline-none"
+                                                                    value={q.bloomLevel || 'Remember'}
+                                                                    onChange={(e) => {
+                                                                        const updated = [...generatedQuestions];
+                                                                        updated[idx].bloomLevel = e.target.value;
+                                                                        setGeneratedQuestions(updated);
+                                                                    }}
+                                                                >
+                                                                    <option value="Remember">Remember</option>
+                                                                    <option value="Understand">Understand</option>
+                                                                    <option value="Apply">Apply</option>
+                                                                    <option value="Analyze">Analyze</option>
+                                                                    <option value="Evaluate">Evaluate</option>
+                                                                    <option value="Create">Create</option>
+                                                                </select>
+                                                            ) : (
+                                                                <p className="text-xs font-bold text-gray-900 dark:text-white">{q.bloomLevel || 'Remember'}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
                                                     <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
                                                         {editingIndex === idx ? (
                                                             <button onClick={() => setEditingIndex(null)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-3 py-1.5 rounded-lg transition-colors">Done</button>

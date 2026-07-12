@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../utils/axiosConfig';
 import { Search, Plus, Filter, Trash2, Edit2, ChevronLeft, ChevronRight, Check, Download, Upload, X, MoreVertical, Layers, SortAsc, FileText, ListFilter } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -62,6 +63,20 @@ const Questions = () => {
     fetchQuestions();
     setSelectedIds(new Set());
   }, [debouncedSearch, filters.subject, filters.difficulty, filters.type, sort, pagination.page]);
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('manual') === 'true') {
+      setIsAddOpen(true);
+      // Clean up URL
+      params.delete('manual');
+      const newSearch = params.toString() ? `?${params.toString()}` : '';
+      navigate(`/questions${newSearch}`, { replace: true });
+    }
+  }, [location.search, navigate]);
 
   const fetchQuestions = async () => {
     setLoading(true);
@@ -368,9 +383,9 @@ const Questions = () => {
             <button onClick={() => document.getElementById('csvUpload').click()} className="w-full sm:w-auto justify-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                 <Upload className="w-4 h-4" /> Bulk Import CSV
             </button>
-            <button onClick={() => setIsAddOpen(true)} className="w-full sm:w-auto justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center gap-2">
+            <Link to="/ai-generator" className="w-full sm:w-auto justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Add Question
-            </button>
+            </Link>
         </div>
       </div>
 
