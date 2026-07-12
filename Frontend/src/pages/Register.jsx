@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../utils/axiosConfig';
 import { useAuth } from '../context/AuthContext';
-import { GraduationCap, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { GraduationCap, Mail, Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 
@@ -10,6 +10,8 @@ const Register = () => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [accountExists, setAccountExists] = useState(false);
   const { login, user } = useAuth();
   const navigate = useNavigate();
 
@@ -23,6 +25,7 @@ const Register = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setAccountExists(false);
     try {
       const res = await api.post('/auth/register', formData);
       toast.success(res.data.message || res.data.msg);
@@ -32,10 +35,17 @@ const Register = () => {
       console.error("Response Data:", err.response?.data);
       console.error("Response Status:", err.response?.status);
       
+      const status = err.response?.status;
       const errorMessage = err.response?.data?.message || err.response?.data?.msg || err.message || 'Registration failed. Try a different email.';
       
-      toast.error(errorMessage);
-      setError(errorMessage);
+      if (status === 409 || errorMessage.toLowerCase().includes('already exists')) {
+        setAccountExists(true);
+        setError("An account with this email already exists.");
+      } else {
+        setAccountExists(false);
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -73,9 +83,19 @@ const Register = () => {
           </div>
 
           {error && (
-            <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-3 text-sm">
-              <AlertCircle className="w-5 h-5" />
-              {error}
+            <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl flex flex-col gap-2 text-sm border border-red-100">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium">{error}</span>
+              </div>
+              {accountExists && (
+                <div className="mt-2 ml-8 flex flex-col items-start gap-3">
+                  <span className="text-red-600/80">Already have an account?</span>
+                  <Link to="/login" className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+                    Go to Login
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 
@@ -119,12 +139,19 @@ const Register = () => {
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  type="password" required minLength="6"
+                  type={showPassword ? "text" : "password"} required minLength="6"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-gray-900"
+                  className="w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-gray-900"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 

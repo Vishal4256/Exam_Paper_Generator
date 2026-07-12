@@ -170,15 +170,24 @@ const ResetPassword = () => {
                             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                                 Confirm New Password
                             </label>
-                            <input 
-                                type={showPassword ? "text" : "password"} 
-                                placeholder="••••••••" 
-                                required 
-                                disabled={loading}
-                                value={confirmPassword}
-                                className="block w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                                onChange={(e) => setConfirmPassword(e.target.value)} 
-                            />
+                            <div className="relative">
+                                <input 
+                                    type={showPassword ? "text" : "password"} 
+                                    placeholder="••••••••" 
+                                    required 
+                                    disabled={loading}
+                                    value={confirmPassword}
+                                    className="block w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all pr-12"
+                                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                >
+                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
+                            </div>
                         </div>
 
                         {/* Password Requirements */}

@@ -17,7 +17,7 @@ const register = async (req, res) => {
         console.log("STEP 3 - Existing user checked");
         
         if (existingUser) {
-            return res.status(400).json({ success: false, msg: "User already exists", message: "User already exists" });
+            return res.status(409).json({ success: false, msg: "An account with this email already exists.", message: "An account with this email already exists." });
         }
         
         // Generate a 6-digit OTP
