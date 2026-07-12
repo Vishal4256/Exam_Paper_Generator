@@ -8,18 +8,21 @@ import { sendPasswordResetLink, sendVerificationEmail } from '../utils/emailServ
 // 1. Register User
 const register = async (req, res) => {
     try {
+        console.log("STEP 1 - Register request received");
         const { name, email, password } = req.body;
 
+        console.log("STEP 2 - Input validated"); // assuming express middleware handles raw validation
+
         const existingUser = await User.findOne({ email });
+        console.log("STEP 3 - Existing user checked");
+        
         if (existingUser) {
             return res.status(400).json({ success: false, msg: "User already exists", message: "User already exists" });
         }
         
         // Generate a 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-        // Send OTP email before creating user/pending user
-        await sendVerificationEmail(email, otp);
+        console.log("STEP 4 - OTP generated");
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -35,12 +38,26 @@ const register = async (req, res) => {
             otpExpires: Date.now() + 10 * 60 * 1000 // 10 minutes
         });
         await pendingUser.save();
+        console.log("STEP 5 - Pending user saved");
         
-        res.status(200).json({ success: true, message: "OTP sent to email. Please verify.", email });
+        console.log("STEP 9 - Returning success response");
+        res.status(200).json({ success: true, message: "Registration successful. OTP is being sent.", email });
 
+        console.log("STEP 6 - Preparing email");
+        console.log("STEP 7 - Calling sendVerificationEmail() in background");
+        sendVerificationEmail(email, otp).then(result => {
+            console.log("STEP 8 - Email completed in background");
+            if (!result.success) {
+                console.error("Email sending failed:", result.error);
+            }
+        }).catch(err => {
+            console.error(`ERROR in register() STEP 8 Email background task: ${err.message}\n${err.stack}`);
+        });
+
+        return; // explicitly return after sending response
     } catch (err) {
-        console.error('Registration error:', err);
-        res.status(500).json({ success: false, msg: "Registration Failed: " + err.message, message: err.message });
+        console.error(`ERROR in register(): ${err.message}\n${err.stack}`);
+        return res.status(500).json({ success: false, msg: "Registration Failed: " + err.message, message: err.message });
     }
 };
 
@@ -69,17 +86,18 @@ const verifyOTP = async (req, res) => {
         await PendingUser.deleteMany({ email });
 
         const token = jwt.sign({ id: newUser._id, role: newUser.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
-        res.status(201).json({ success: true, message: "Account verified and created successfully.", token, user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role } });
+        return res.status(201).json({ success: true, message: "Account verified and created successfully.", token, user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role } });
 
     } catch (err) {
-        console.error('Verify OTP error:', err);
-        res.status(500).json({ success: false, msg: "Server Error: " + err.message, message: "Server Error: " + err.message });
+        console.error(`ERROR in verifyOTP(): ${err.message}\n${err.stack}`);
+        return res.status(500).json({ success: false, msg: "Server Error: " + err.message, message: "Server Error: " + err.message });
     }
 };
 
 // 3. Resend OTP
 const resendOTP = async (req, res) => {
     try {
+        console.log("STEP 1 - resendOTP request received");
         const { email } = req.body;
         
         const pendingUser = await PendingUser.findOne({ email });
@@ -89,20 +107,30 @@ const resendOTP = async (req, res) => {
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         
-        await sendVerificationEmail(email, otp);
-
         pendingUser.otp = otp;
         pendingUser.otpExpires = Date.now() + 10 * 60 * 1000;
         await pendingUser.save();
+        console.log("STEP 2 - Pending user updated with new OTP");
 
         res.status(200).json({ success: true, message: "OTP resent successfully." });
+        console.log("STEP 3 - Response sent");
+
+        console.log("STEP 4 - Calling sendVerificationEmail() in background");
+        sendVerificationEmail(email, otp).then(result => {
+             console.log("STEP 5 - Email completed in background");
+             if (!result.success) {
+                 console.error("Email sending failed:", result.error);
+             }
+        }).catch(err => {
+             console.error(`ERROR in resendOTP() STEP 5 Email background task: ${err.message}\n${err.stack}`);
+        });
+
+        return; // explicitly return after sending response
     } catch (err) {
-        console.error('Resend OTP error:', err);
-        res.status(500).json({ success: false, msg: "Failed to resend OTP: " + err.message, message: "Failed to resend OTP: " + err.message });
+        console.error(`ERROR in resendOTP(): ${err.message}\n${err.stack}`);
+        return res.status(500).json({ success: false, msg: "Failed to resend OTP: " + err.message, message: "Failed to resend OTP: " + err.message });
     }
 };
-
-
 
 // 4. Login User
 const login = async (req, res) => {
@@ -115,16 +143,17 @@ const login = async (req, res) => {
         if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
         const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
-        res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+        return res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
     } catch (err) {
-        console.error('Login error:', err);
-        res.status(500).json({ msg: "Server Error: " + err.message });
+        console.error(`ERROR in login(): ${err.message}\n${err.stack}`);
+        return res.status(500).json({ msg: "Server Error: " + err.message });
     }
 };
 
 // 5. Forgot Password - Send Reset Link
 const forgotPassword = async (req, res) => {
     try {
+        console.log("STEP 1 - forgotPassword request received");
         const { email } = req.body;
         const user = await User.findOne({ email });
 
@@ -137,21 +166,32 @@ const forgotPassword = async (req, res) => {
         user.resetPasswordToken = token;
         user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
         await user.save();
+        console.log("STEP 2 - User saved with reset token");
 
         // Construct reset link
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const resetLink = `${frontendUrl}/reset-password/${token}`;
 
-        // Send Email
-        await sendPasswordResetLink(email, resetLink);
-
         res.status(200).json({
             msg: "Password reset link sent to your email"
         });
+        console.log("STEP 3 - Response sent");
 
+        // Send Email
+        console.log("STEP 4 - Calling sendPasswordResetLink() in background");
+        sendPasswordResetLink(email, resetLink).then(result => {
+            console.log("STEP 5 - Email completed in background");
+            if (!result.success) {
+                console.error("Email sending failed:", result.error);
+            }
+        }).catch(err => {
+            console.error(`ERROR in forgotPassword() STEP 5 Email background task: ${err.message}\n${err.stack}`);
+        });
+
+        return; // explicitly return after sending response
     } catch (err) {
-        console.error('Forgot password error:', err);
-        res.status(500).json({ msg: "Server Error: " + err.message });
+        console.error(`ERROR in forgotPassword(): ${err.message}\n${err.stack}`);
+        return res.status(500).json({ msg: "Server Error: " + err.message });
     }
 };
 
@@ -185,11 +225,11 @@ const resetPassword = async (req, res) => {
 
         await user.save();
 
-        res.status(200).json({ msg: "Password has been updated successfully" });
+        return res.status(200).json({ msg: "Password has been updated successfully" });
 
     } catch (err) {
-        console.error('Reset password error:', err);
-        res.status(500).json({ msg: "Server Error: " + err.message });
+        console.error(`ERROR in resetPassword(): ${err.message}\n${err.stack}`);
+        return res.status(500).json({ msg: "Server Error: " + err.message });
     }
 };
 
@@ -198,10 +238,10 @@ const getMe = async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password');
         if (!user) return res.status(404).json({ msg: "User not found" });
-        res.json(user);
+        return res.json(user);
     } catch (err) {
-        console.error('getMe error:', err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error(`ERROR in getMe(): ${err.message}\n${err.stack}`);
+        return res.status(500).json({ msg: "Server Error" });
     }
 };
 
@@ -218,10 +258,10 @@ const updateSettings = async (req, res) => {
         if (institutionSettings !== undefined) user.institutionSettings = institutionSettings;
 
         await user.save();
-        res.json(user);
+        return res.json(user);
     } catch (err) {
-        console.error('updateSettings error:', err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error(`ERROR in updateSettings(): ${err.message}\n${err.stack}`);
+        return res.status(500).json({ msg: "Server Error" });
     }
 };
 
@@ -244,10 +284,10 @@ const updatePassword = async (req, res) => {
         user.password = await bcrypt.hash(newPassword, salt);
         await user.save();
 
-        res.json({ msg: "Password updated successfully" });
+        return res.json({ msg: "Password updated successfully" });
     } catch (err) {
-        console.error('updatePassword error:', err);
-        res.status(500).json({ msg: "Server Error" });
+        console.error(`ERROR in updatePassword(): ${err.message}\n${err.stack}`);
+        return res.status(500).json({ msg: "Server Error" });
     }
 };
 

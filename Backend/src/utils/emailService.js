@@ -11,6 +11,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
 });
 
 export const sendVerificationEmail = async (email, otp) => {
@@ -23,12 +26,19 @@ export const sendVerificationEmail = async (email, otp) => {
   <p>This OTP expires in 10 minutes.</p>
 </div>
 `;
-    await transporter.sendMail({
+    const sendMailPromise = transporter.sendMail({
       from: `"ExamFlow" <${process.env.EMAIL_FROM}>`,
       to: email,
       subject: "Verify Your Email - ExamFlow",
       html: html,
     });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Email timeout")), 10000)
+    );
+
+    await Promise.race([sendMailPromise, timeoutPromise]);
+    
     console.log(`✓ Email sent successfully to ${email}`);
     return { success: true };
   } catch (error) {
@@ -61,12 +71,19 @@ export const sendPasswordResetLink = async (email, resetLink) => {
   <p>If you did not request this, ignore this email.</p>
 </div>
 `;
-    await transporter.sendMail({
+    const sendMailPromise = transporter.sendMail({
       from: `"ExamFlow" <${process.env.EMAIL_FROM}>`,
       to: email,
       subject: "Reset Your Password - ExamFlow",
       html: html,
     });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Email timeout")), 10000)
+    );
+
+    await Promise.race([sendMailPromise, timeoutPromise]);
+
     console.log(`✓ Email sent successfully to ${email}`);
     return { success: true };
   } catch (error) {
