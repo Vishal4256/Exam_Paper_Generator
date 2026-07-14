@@ -8,14 +8,16 @@ import { sendPasswordResetLink, sendVerificationEmail } from '../utils/emailServ
 // 1. Register User
 const register = async (req, res) => {
     try {
-        console.time("Registration");
+        const reqStartTime = performance.now();
         console.log("STEP 1 - Register request received");
         const { name, email, password } = req.body;
 
-        console.log("STEP 2 - Input validated"); 
+        const valTime = performance.now();
+        console.log(`STEP 2 - Input validated (Took ${(valTime - reqStartTime).toFixed(2)}ms)`); 
 
         const existingUser = await User.findOne({ email }).lean();
-        console.log("STEP 3 - Existing user checked");
+        const dbTime = performance.now();
+        console.log(`STEP 3 - Existing user checked (Took ${(dbTime - valTime).toFixed(2)}ms)`);
         
         if (existingUser) {
             return res.status(409).json({ success: false, msg: "An account with this email already exists.", message: "An account with this email already exists." });
@@ -23,7 +25,8 @@ const register = async (req, res) => {
         
         // Generate a 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log("STEP 4 - OTP generated");
+        const otpTime = performance.now();
+        console.log(`STEP 4 - OTP generated (Took ${(otpTime - dbTime).toFixed(2)}ms)`);
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -39,28 +42,32 @@ const register = async (req, res) => {
             otpExpires: Date.now() + 10 * 60 * 1000 // 10 minutes
         });
         await pendingUser.save();
-        console.log("STEP 5 - Pending user saved");
+        const saveTime = performance.now();
+        console.log(`STEP 5 - Pending user saved (Took ${(saveTime - otpTime).toFixed(2)}ms)`);
         
         console.log("STEP 6 - Sending immediate response");
+        res.status(200).json({ success: true, message: "OTP sent to email. Please verify.", email });
         
-        // Send email asynchronously in the background
-        sendVerificationEmail(email, otp)
-          .then(() => {
-              console.log("OTP email sent.");
-          })
-          .catch(err => {
-              console.error("Email failed:", err.message);
-          });
+        const totalTime = performance.now();
+        console.log(`Total request time before response: ${(totalTime - reqStartTime).toFixed(2)}ms`);
 
-        console.timeEnd("Registration");
-        return res.status(200).json({
-            success: true,
-            message: "OTP generated successfully.",
-            email,
+        // Send email asynchronously in the background
+        Promise.resolve().then(async () => {
+            console.log("STEP 7 - Background: Calling sendVerificationEmail()");
+            const emailStartTime = performance.now();
+            const result = await sendVerificationEmail(email, otp);
+            const emailEndTime = performance.now();
+            
+            if (!result.success) {
+                console.error("Background email sending failed:", result.error);
+            } else {
+                console.log(`STEP 8 - Background: Email completed (Took ${(emailEndTime - emailStartTime).toFixed(2)}ms)`);
+            }
+        }).catch(err => {
+            console.error("Background email process error:", err);
         });
 
     } catch (err) {
-        console.timeEnd("Registration");
         console.error(`ERROR in register(): ${err.message}\n${err.stack}`);
         if (!res.headersSent) {
             return res.status(500).json({ success: false, msg: "Registration Failed: " + err.message, message: err.message });
@@ -119,15 +126,19 @@ const resendOTP = async (req, res) => {
         await pendingUser.save();
         console.log("STEP 2 - Pending user updated with new OTP");
 
-        console.log("STEP 4 - Calling sendVerificationEmail()");
-        const result = await sendVerificationEmail(email, otp);
-        if (!result.success) {
-            console.error(result.error);
-        }
-        console.log("STEP 5 - Email completed");
-
         console.log("STEP 3 - Response sent");
-        return res.status(200).json({ success: true, message: "OTP resent successfully." });
+        res.status(200).json({ success: true, message: "OTP resent successfully." });
+
+        Promise.resolve().then(async () => {
+            console.log("STEP 4 - Calling sendVerificationEmail()");
+            const result = await sendVerificationEmail(email, otp);
+            if (!result.success) {
+                console.error(result.error);
+            }
+            console.log("STEP 5 - Email completed");
+        }).catch(err => {
+            console.error("Background email process error:", err);
+        });
 
     } catch (err) {
         console.error(`ERROR in resendOTP(): ${err.message}\n${err.stack}`);
@@ -177,17 +188,21 @@ const forgotPassword = async (req, res) => {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const resetLink = `${frontendUrl}/reset-password/${token}`;
 
-        // Send Email
-        console.log("STEP 4 - Calling sendPasswordResetLink()");
-        const result = await sendPasswordResetLink(email, resetLink);
-        if (!result.success) {
-            console.error(result.error);
-        }
-        console.log("STEP 5 - Email completed");
-
         console.log("STEP 3 - Response sent");
-        return res.status(200).json({
+        res.status(200).json({
             msg: "Password reset link sent to your email"
+        });
+
+        // Send Email
+        Promise.resolve().then(async () => {
+            console.log("STEP 4 - Calling sendPasswordResetLink()");
+            const result = await sendPasswordResetLink(email, resetLink);
+            if (!result.success) {
+                console.error(result.error);
+            }
+            console.log("STEP 5 - Email completed");
+        }).catch(err => {
+            console.error("Background email process error:", err);
         });
 
     } catch (err) {
