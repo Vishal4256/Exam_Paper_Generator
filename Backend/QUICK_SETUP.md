@@ -14,9 +14,11 @@ Add these lines to your `.env` file:
 
 ```env
 # Email Configuration
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=your_app_password_here
-APP_NAME=ExamFlow
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password_here
+APP_NAME=Exam Paper Generator
 ```
 
 ## Step 3: Get Gmail App Password
@@ -29,7 +31,7 @@ APP_NAME=ExamFlow
 6. Enter "Exam Paper Generator" as the name
 7. Click **Generate**
 8. Copy the 16-character password (no spaces)
-9. Paste it as `EMAIL_PASS` in your `.env` file
+9. Paste it as `SMTP_PASS` in your `.env` file
 
 ## Step 4: Restart Server
 
@@ -46,7 +48,7 @@ Try registering a new user. You should now receive an OTP email!
 
 ## Common Issues
 
-- **"EMAIL_USER not set"**: Make sure `.env` file exists in `Backend` folder
+- **"SMTP_USER not set"**: Make sure `.env` file exists in `Backend` folder
 - **"Email authentication failed"**: Check that your App Password is correct (16 characters, no spaces)
 - **"Could not connect"**: Check your internet connection and SMTP settings
 
@@ -57,9 +59,11 @@ PORT=3000
 MONGODB_URI=your_mongodb_uri
 JWT_SECRET=your_jwt_secret
 
-EMAIL_USER=myemail@gmail.com
-EMAIL_PASS=abcdefghijklmnop
-APP_NAME=ExamFlow
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=myemail@gmail.com
+SMTP_PASS=abcd efgh ijkl mnop
+APP_NAME=Exam Paper Generator
 ```
 
 **Note**: Remove spaces from the App Password when pasting it!

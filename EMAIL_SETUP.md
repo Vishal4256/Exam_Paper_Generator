@@ -22,9 +22,11 @@ Add these to your `Backend/.env` file:
 
 ```env
 # Email Configuration (for Nodemailer)
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=your_app_password_here
-APP_NAME=ExamFlow
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password_here
+APP_NAME=Exam Paper Generator
 ```
 
 ## Gmail Setup Instructions
@@ -39,11 +41,12 @@ APP_NAME=ExamFlow
    - Select "Mail" and "Other (Custom name)"
    - Enter "Exam Paper Generator" as the name
    - Copy the generated 16-character password
-   - Use this password as `EMAIL_PASS` in your `.env` file
+   - Use this password as `SMTP_PASS` in your `.env` file
 
 3. **Alternative Email Providers**
-   - For Outlook/Hotmail: Use `smtp-mail.outlook.com` with port `587` (requires custom transporter setup in emailService.js)
-   - For custom SMTP: Update the nodemailer transport configuration in `emailService.js`
+   - For Outlook/Hotmail: Use `smtp-mail.outlook.com` with port `587`
+   - For Yahoo: Use `smtp.mail.yahoo.com` with port `587`
+   - For custom SMTP: Update `SMTP_HOST` and `SMTP_PORT` accordingly
 
 ## API Endpoints
 
