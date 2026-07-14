@@ -10,12 +10,14 @@ const VerifyOTP = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
-  const [countdown, setCountdown] = useState(60);
+  const [countdown, setCountdown] = useState(30);
   const location = useLocation();
   const navigate = useNavigate();
   const { login, user } = useAuth();
 
   const email = location.state?.email;
+  const isNewRegistration = location.state?.isNewRegistration;
+  const [showBackgroundEmailMsg, setShowBackgroundEmailMsg] = useState(!!isNewRegistration);
 
   useEffect(() => {
     if (user) {
@@ -24,6 +26,13 @@ const VerifyOTP = () => {
       navigate('/register', { replace: true });
     }
   }, [user, email, navigate]);
+
+  useEffect(() => {
+    if (showBackgroundEmailMsg) {
+      const timer = setTimeout(() => setShowBackgroundEmailMsg(false), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [showBackgroundEmailMsg]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -68,7 +77,7 @@ const VerifyOTP = () => {
     try {
       const res = await api.post('/auth/resend-otp', { email });
       toast.success(res.data.message || 'OTP resent successfully!');
-      setCountdown(60);
+      setCountdown(30);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || err.response?.data?.msg || 'Failed to resend OTP.');
@@ -88,9 +97,19 @@ const VerifyOTP = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {showBackgroundEmailMsg && (
+            <div className="mb-4 bg-indigo-50 text-indigo-700 p-3 rounded-md flex items-center gap-2 text-sm border border-indigo-200">
+              <svg className="animate-spin h-5 w-5 text-indigo-600 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Sending OTP email in the background... It may take a few seconds to arrive.</span>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-md flex items-center gap-2 text-sm">
-              <AlertCircle className="w-5 h-5" />
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
               {error}
             </div>
           )}

@@ -8,12 +8,13 @@ import { sendPasswordResetLink, sendVerificationEmail } from '../utils/emailServ
 // 1. Register User
 const register = async (req, res) => {
     try {
+        console.time("Registration");
         console.log("STEP 1 - Register request received");
         const { name, email, password } = req.body;
 
         console.log("STEP 2 - Input validated"); 
 
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({ email }).lean();
         console.log("STEP 3 - Existing user checked");
         
         if (existingUser) {
@@ -40,20 +41,30 @@ const register = async (req, res) => {
         await pendingUser.save();
         console.log("STEP 5 - Pending user saved");
         
-        console.log("STEP 6 - Preparing email");
-        console.log("STEP 7 - Calling sendVerificationEmail()");
-        const result = await sendVerificationEmail(email, otp);
-        if (!result.success) {
-            console.error(result.error);
-        }
-        console.log("STEP 8 - Email completed");
+        console.log("STEP 6 - Sending immediate response");
+        
+        // Send email asynchronously in the background
+        sendVerificationEmail(email, otp)
+          .then(() => {
+              console.log("OTP email sent.");
+          })
+          .catch(err => {
+              console.error("Email failed:", err.message);
+          });
 
-        console.log("STEP 9 - Returning success response");
-        return res.status(200).json({ success: true, message: "OTP sent to email. Please verify.", email });
+        console.timeEnd("Registration");
+        return res.status(200).json({
+            success: true,
+            message: "OTP generated successfully.",
+            email,
+        });
 
     } catch (err) {
+        console.timeEnd("Registration");
         console.error(`ERROR in register(): ${err.message}\n${err.stack}`);
-        return res.status(500).json({ success: false, msg: "Registration Failed: " + err.message, message: err.message });
+        if (!res.headersSent) {
+            return res.status(500).json({ success: false, msg: "Registration Failed: " + err.message, message: err.message });
+        }
     }
 };
 
@@ -120,7 +131,9 @@ const resendOTP = async (req, res) => {
 
     } catch (err) {
         console.error(`ERROR in resendOTP(): ${err.message}\n${err.stack}`);
-        return res.status(500).json({ success: false, msg: "Failed to resend OTP: " + err.message, message: "Failed to resend OTP: " + err.message });
+        if (!res.headersSent) {
+            return res.status(500).json({ success: false, msg: "Failed to resend OTP: " + err.message, message: "Failed to resend OTP: " + err.message });
+        }
     }
 };
 
@@ -179,7 +192,9 @@ const forgotPassword = async (req, res) => {
 
     } catch (err) {
         console.error(`ERROR in forgotPassword(): ${err.message}\n${err.stack}`);
-        return res.status(500).json({ msg: "Server Error: " + err.message });
+        if (!res.headersSent) {
+            return res.status(500).json({ msg: "Server Error: " + err.message });
+        }
     }
 };
 

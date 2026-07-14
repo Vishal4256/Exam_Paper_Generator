@@ -8,6 +8,7 @@ const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 export const sendVerificationEmail = async (email, otp) => {
   try {
     console.log(`Email request started for verification: ${email}`);
+    console.time("Email");
 
     const htmlContent = `
 <div style="font-family: Arial, sans-serif;">
@@ -45,10 +46,12 @@ export const sendVerificationEmail = async (email, otp) => {
     });
 
     console.log(`Brevo API response: HTTP ${response.status}`);
+    console.timeEnd("Email");
     console.log(`✓ Email sent successfully to ${email}`);
     
     return { success: true };
   } catch (error) {
+    console.timeEnd("Email");
     console.log("========== BREVO ERROR ==========");
     console.log("Status:", error.response?.status);
     console.log(
@@ -73,6 +76,7 @@ export const sendVerificationEmail = async (email, otp) => {
 export const sendPasswordResetLink = async (email, resetLink) => {
   try {
     console.log(`Email request started for password reset: ${email}`);
+    console.time("Email");
 
     const htmlContent = `
 <div style="font-family: Arial, sans-serif;">
@@ -123,10 +127,12 @@ export const sendPasswordResetLink = async (email, resetLink) => {
     });
 
     console.log(`Brevo API response: HTTP ${response.status}`);
+    console.timeEnd("Email");
     console.log(`✓ Email sent successfully to ${email}`);
     
     return { success: true };
   } catch (error) {
+    console.timeEnd("Email");
     console.log("========== BREVO ERROR ==========");
     console.log("Status:", error.response?.status);
     console.log(

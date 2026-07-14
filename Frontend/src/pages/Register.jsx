@@ -29,7 +29,7 @@ const Register = () => {
     try {
       const res = await api.post('/auth/register', formData);
       toast.success(res.data.message || res.data.msg);
-      navigate('/verify-otp', { state: { email: formData.email } });
+      navigate('/verify-otp', { state: { email: formData.email, isNewRegistration: true } });
     } catch (err) {
       console.error("Registration Request Failed:", err);
       console.error("Response Data:", err.response?.data);
