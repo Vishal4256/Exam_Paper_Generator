@@ -13,11 +13,10 @@ const register = async (req, res) => {
         const { name, email, password } = req.body;
 
         const valTime = performance.now();
-        console.log(`STEP 2 - Input validated (Took ${(valTime - reqStartTime).toFixed(2)}ms)`); 
+        // validation & DB check omitted from steps to match exact user requirement
 
         const existingUser = await User.findOne({ email }).lean();
         const dbTime = performance.now();
-        console.log(`STEP 3 - Existing user checked (Took ${(dbTime - valTime).toFixed(2)}ms)`);
         
         if (existingUser) {
             return res.status(409).json({ success: false, msg: "An account with this email already exists.", message: "An account with this email already exists." });
@@ -26,7 +25,7 @@ const register = async (req, res) => {
         // Generate a 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpTime = performance.now();
-        console.log(`STEP 4 - OTP generated (Took ${(otpTime - dbTime).toFixed(2)}ms)`);
+        console.log(`STEP 2 - OTP generated (Took ${(otpTime - dbTime).toFixed(2)}ms)`);
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -43,25 +42,24 @@ const register = async (req, res) => {
         });
         await pendingUser.save();
         const saveTime = performance.now();
-        console.log(`STEP 5 - Pending user saved (Took ${(saveTime - otpTime).toFixed(2)}ms)`);
+        console.log(`STEP 3 - Pending user saved (Took ${(saveTime - otpTime).toFixed(2)}ms)`);
         
-        console.log("STEP 6 - Sending immediate response");
         res.status(200).json({ success: true, message: "OTP sent to email. Please verify.", email });
         
         const totalTime = performance.now();
-        console.log(`Total request time before response: ${(totalTime - reqStartTime).toFixed(2)}ms`);
 
         // Send email asynchronously in the background
         Promise.resolve().then(async () => {
-            console.log("STEP 7 - Background: Calling sendVerificationEmail()");
+            console.log("STEP 4 - Sending Gmail OTP");
             const emailStartTime = performance.now();
             const result = await sendVerificationEmail(email, otp);
             const emailEndTime = performance.now();
             
             if (!result.success) {
-                console.error("Background email sending failed:", result.error);
+                console.error("Background email sending failed:");
+                console.error(result.fullError || result.error);
             } else {
-                console.log(`STEP 8 - Background: Email completed (Took ${(emailEndTime - emailStartTime).toFixed(2)}ms)`);
+                console.log(`STEP 5 - Gmail OTP sent successfully (Took ${(emailEndTime - emailStartTime).toFixed(2)}ms)`);
             }
         }).catch(err => {
             console.error("Background email process error:", err);
@@ -126,16 +124,17 @@ const resendOTP = async (req, res) => {
         await pendingUser.save();
         console.log("STEP 2 - Pending user updated with new OTP");
 
-        console.log("STEP 3 - Response sent");
         res.status(200).json({ success: true, message: "OTP resent successfully." });
 
         Promise.resolve().then(async () => {
-            console.log("STEP 4 - Calling sendVerificationEmail()");
+            console.log("STEP 3 - Sending Gmail OTP");
             const result = await sendVerificationEmail(email, otp);
             if (!result.success) {
-                console.error(result.error);
+                console.error("Background email sending failed:");
+                console.error(result.fullError || result.error);
+            } else {
+                console.log("STEP 4 - Gmail OTP sent successfully");
             }
-            console.log("STEP 5 - Email completed");
         }).catch(err => {
             console.error("Background email process error:", err);
         });
@@ -188,19 +187,20 @@ const forgotPassword = async (req, res) => {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const resetLink = `${frontendUrl}/reset-password/${token}`;
 
-        console.log("STEP 3 - Response sent");
         res.status(200).json({
             msg: "Password reset link sent to your email"
         });
 
         // Send Email
         Promise.resolve().then(async () => {
-            console.log("STEP 4 - Calling sendPasswordResetLink()");
+            console.log("STEP 3 - Sending Gmail Link");
             const result = await sendPasswordResetLink(email, resetLink);
             if (!result.success) {
-                console.error(result.error);
+                console.error("Background email sending failed:");
+                console.error(result.fullError || result.error);
+            } else {
+                console.log("STEP 4 - Gmail Link sent successfully");
             }
-            console.log("STEP 5 - Email completed");
         }).catch(err => {
             console.error("Background email process error:", err);
         });
