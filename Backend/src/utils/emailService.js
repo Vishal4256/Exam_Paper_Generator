@@ -3,6 +3,13 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+console.log("Loading Gmail SMTP configuration...");
+console.log("SMTP_HOST:", process.env.SMTP_HOST);
+console.log("SMTP_PORT:", process.env.SMTP_PORT);
+console.log("EMAIL_USER:", process.env.EMAIL_USER);
+console.log("EMAIL_FROM:", process.env.EMAIL_FROM);
+console.log("EMAIL_PASS exists:", !!process.env.EMAIL_PASS);
+
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -12,6 +19,16 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASS,
     },
 });
+
+try {
+    console.time("SMTP Verify");
+    await transporter.verify();
+    console.timeEnd("SMTP Verify");
+    console.log("✅ Gmail SMTP Connected Successfully");
+} catch (error) {
+    console.error("❌ Gmail SMTP Verification Failed during startup:");
+    console.error(error);
+}
 
 const APP_NAME = process.env.APP_NAME || "ExamFlow";
 
@@ -40,9 +57,26 @@ export const sendVerificationEmail = async (email, otp) => {
       html: htmlContent
     };
 
-    await transporter.sendMail(mailOptions);
+    console.time("Send Mail");
+    const info = await transporter.sendMail(mailOptions);
+    console.timeEnd("Send Mail");
+
+    console.log("Message ID:", info.messageId);
+    console.log("Accepted:", info.accepted);
+    console.log("Rejected:", info.rejected);
+    console.log("Response:", info.response);
+
     return { success: true };
   } catch (error) {
+    console.error("========== SMTP ERROR ==========");
+    console.error(error);
+    console.error("Code:", error.code);
+    console.error("Command:", error.command);
+    console.error("Response:", error.response);
+    console.error("Message:", error.message);
+    console.error(error.stack);
+    console.error("================================");
+
     return {
         success: false,
         error: error.message,
@@ -78,9 +112,26 @@ export const sendPasswordResetLink = async (email, resetLink) => {
       html: htmlContent
     };
 
-    await transporter.sendMail(mailOptions);
+    console.time("Send Mail");
+    const info = await transporter.sendMail(mailOptions);
+    console.timeEnd("Send Mail");
+
+    console.log("Message ID:", info.messageId);
+    console.log("Accepted:", info.accepted);
+    console.log("Rejected:", info.rejected);
+    console.log("Response:", info.response);
+
     return { success: true };
   } catch (error) {
+    console.error("========== SMTP ERROR ==========");
+    console.error(error);
+    console.error("Code:", error.code);
+    console.error("Command:", error.command);
+    console.error("Response:", error.response);
+    console.error("Message:", error.message);
+    console.error(error.stack);
+    console.error("================================");
+
     return {
         success: false,
         error: error.message,
