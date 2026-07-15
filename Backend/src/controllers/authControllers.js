@@ -2,8 +2,6 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.model.js';
-import PendingUser from '../models/PendingUser.model.js';
-import { sendPasswordResetLink, sendVerificationEmail } from '../utils/emailService.js';
 
 // 1. Register User
 const register = async (req, res) => {
@@ -19,37 +17,19 @@ const register = async (req, res) => {
         if (existingUser) {
             return res.status(409).json({ success: false, msg: "An account with this email already exists.", message: "An account with this email already exists." });
         }
-        
-        // Generate a 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log("STEP 4 - OTP generated");
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Delete any existing pending user for this email to replace it
-        await PendingUser.deleteMany({ email });
-
-        const pendingUser = new PendingUser({
+        const newUser = new User({
             name,
             email,
-            password: hashedPassword,
-            otp,
-            otpExpires: Date.now() + 10 * 60 * 1000 // 10 minutes
+            password: hashedPassword
         });
-        await pendingUser.save();
-        console.log("STEP 5 - Pending user saved");
-        
-        console.log("STEP 6 - Preparing email");
-        console.log("STEP 7 - Calling sendVerificationEmail()");
-        const result = await sendVerificationEmail(email, otp);
-        if (!result.success) {
-            console.error(result.error);
-        }
-        console.log("STEP 8 - Email completed");
+        await newUser.save();
+        console.log("STEP 4 - User saved");
 
-        console.log("STEP 9 - Returning success response");
-        return res.status(200).json({ success: true, message: "OTP sent to email. Please verify.", email });
+        return res.status(201).json({ success: true, message: "Registration successful. Please login." });
 
     } catch (err) {
         console.error(`ERROR in register(): ${err.message}\n${err.stack}`);
@@ -57,72 +37,6 @@ const register = async (req, res) => {
     }
 };
 
-// 2. Verify OTP
-const verifyOTP = async (req, res) => {
-    try {
-        const { email, otp } = req.body;
-
-        const pendingUser = await PendingUser.findOne({ email });
-        
-        if (!pendingUser) {
-            return res.status(400).json({ success: false, msg: "Session expired or invalid. Please register again.", message: "Session expired or invalid." });
-        }
-
-        if (pendingUser.otp !== otp || pendingUser.otpExpires < Date.now()) {
-            return res.status(400).json({ success: false, msg: "Invalid or expired OTP", message: "Invalid or expired OTP" });
-        }
-
-        const newUser = new User({
-            name: pendingUser.name,
-            email: pendingUser.email,
-            password: pendingUser.password
-        });
-        await newUser.save();
-
-        await PendingUser.deleteMany({ email });
-
-        const token = jwt.sign({ id: newUser._id, role: newUser.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
-        return res.status(201).json({ success: true, message: "Account verified and created successfully.", token, user: { id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role } });
-
-    } catch (err) {
-        console.error(`ERROR in verifyOTP(): ${err.message}\n${err.stack}`);
-        return res.status(500).json({ success: false, msg: "Server Error: " + err.message, message: "Server Error: " + err.message });
-    }
-};
-
-// 3. Resend OTP
-const resendOTP = async (req, res) => {
-    try {
-        console.log("STEP 1 - resendOTP request received");
-        const { email } = req.body;
-        
-        const pendingUser = await PendingUser.findOne({ email });
-        if (!pendingUser) {
-            return res.status(400).json({ success: false, msg: "Session expired. Please register again.", message: "Session expired. Please register again." });
-        }
-
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        pendingUser.otp = otp;
-        pendingUser.otpExpires = Date.now() + 10 * 60 * 1000;
-        await pendingUser.save();
-        console.log("STEP 2 - Pending user updated with new OTP");
-
-        console.log("STEP 4 - Calling sendVerificationEmail()");
-        const result = await sendVerificationEmail(email, otp);
-        if (!result.success) {
-            console.error(result.error);
-        }
-        console.log("STEP 5 - Email completed");
-
-        console.log("STEP 3 - Response sent");
-        return res.status(200).json({ success: true, message: "OTP resent successfully." });
-
-    } catch (err) {
-        console.error(`ERROR in resendOTP(): ${err.message}\n${err.stack}`);
-        return res.status(500).json({ success: false, msg: "Failed to resend OTP: " + err.message, message: "Failed to resend OTP: " + err.message });
-    }
-};
 
 // 4. Login User
 const login = async (req, res) => {
@@ -164,17 +78,13 @@ const forgotPassword = async (req, res) => {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const resetLink = `${frontendUrl}/reset-password/${token}`;
 
-        // Send Email
-        console.log("STEP 4 - Calling sendPasswordResetLink()");
-        const result = await sendPasswordResetLink(email, resetLink);
-        if (!result.success) {
-            console.error(result.error);
-        }
-        console.log("STEP 5 - Email completed");
+        // Log the link to the console for testing purposes
+        console.log(`Password Reset Link for ${email}: ${resetLink}`);
 
         console.log("STEP 3 - Response sent");
         return res.status(200).json({
-            msg: "Password reset link sent to your email"
+            msg: "Password reset link generated.",
+            resetLink // Included in response for testing since email is disabled
         });
 
     } catch (err) {
@@ -281,8 +191,6 @@ const updatePassword = async (req, res) => {
 
 export { 
     register,
-    verifyOTP, 
-    resendOTP,
     login, 
     forgotPassword, 
     resetPassword,

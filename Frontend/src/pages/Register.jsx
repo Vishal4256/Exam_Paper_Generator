@@ -28,8 +28,8 @@ const Register = () => {
     setAccountExists(false);
     try {
       const res = await api.post('/auth/register', formData);
-      toast.success(res.data.message || res.data.msg);
-      navigate('/verify-otp', { state: { email: formData.email } });
+      toast.success("Registration successful. Please login.");
+      navigate('/login');
     } catch (err) {
       console.error("Registration Request Failed:", err);
       console.error("Response Data:", err.response?.data);

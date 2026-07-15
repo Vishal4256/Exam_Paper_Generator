@@ -13,7 +13,6 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import VerifyOTP from './pages/VerifyOTP';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
@@ -66,11 +65,6 @@ function App() {
       path: '/register',
       element: <Register />,
     },
-    {
-      path: '/verify-otp',
-      element: <VerifyOTP />,
-    },
-
     {
       path: '/forgot-password',
       element: <ForgotPassword />,
