@@ -2,7 +2,7 @@
 
 An AI-powered web application for generating, managing, and exporting examination question papers.
 
-## 🚀 Overview
+## 🚀Overview
 
 This project is a full-stack solution designed to help educators and institutions seamlessly create exams and question papers. By integrating powerful AI capabilities, the platform simplifies question generation, manages exam templates, and provides seamless exporting and sharing functionalities.
 
