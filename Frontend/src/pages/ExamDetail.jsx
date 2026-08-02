@@ -112,7 +112,7 @@ const ExamDetail = () => {
               <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-3">{exam.examTitle}</h1>
               <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-500 dark:text-gray-400">
                   <div className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {exam.examDate ? new Date(exam.examDate).toLocaleDateString() : 'Winter Semester'}</div>
-                  <div className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {exam.duration} Minutes</div>
+                  <div className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {exam.duration} Minute{exam.duration === 1 ? '' : 's'}</div>
                   <div className="flex items-center gap-1.5"><Building2 className="w-4 h-4" /> {exam.collegeName || 'Physics Department'}</div>
               </div>
           </div>
@@ -120,7 +120,7 @@ const ExamDetail = () => {
               <button onClick={handleEdit} className="w-full sm:w-auto justify-center px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm">
                   <Edit3 className="w-4 h-4" /> Edit Configuration
               </button>
-              <button onClick={() => downloadPDF('exam')} className="w-full sm:w-auto justify-center px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-md shadow-indigo-600/20">
+              <button onClick={handlePrint} className="w-full sm:w-auto justify-center px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-md shadow-indigo-600/20">
                   <Download className="w-4 h-4" /> Download PDF
               </button>
           </div>
@@ -208,7 +208,7 @@ const ExamDetail = () => {
       </div>
 
       {/* Document Canvas (A4 simulation) */}
-      <div className="bg-white dark:bg-gray-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none border border-gray-200 dark:border-gray-800 rounded-sm mx-auto w-full max-w-[800px] min-h-[1131px] p-12 md:p-16 relative print:shadow-none print:border-none print:m-0 print:p-0 print:max-w-none print:w-full">
+      <div id="exam-paper" className="bg-white dark:bg-gray-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none border border-gray-200 dark:border-gray-800 rounded-sm mx-auto w-full max-w-[800px] min-h-[1131px] p-12 md:p-16 relative print:shadow-none print:border-none print:m-0 print:p-0 print:max-w-none print:w-full">
           {/* Header Block */}
           <div className="text-center font-serif text-black dark:text-gray-100 mb-6">
               <h1 className="text-xl font-bold uppercase tracking-wide">{exam.collegeName || exam.institutionName || 'INSTITUTION NAME'}</h1>
@@ -217,7 +217,7 @@ const ExamDetail = () => {
               <h3 className="text-base font-bold uppercase mt-2">{exam.examTitle} {previewMode === 'answer' ? '- ANSWER KEY' : ''}</h3>
               
               <div className="flex justify-between items-center text-sm font-bold uppercase border-t border-black dark:border-gray-200 mt-4 pt-4 border-b pb-4">
-                  <span>TIME: {exam.duration ? exam.duration + ' HOURS' : 'N/A'}</span>
+                  <span>Time: {exam.duration ? `${exam.duration} Minute${exam.duration === 1 ? '' : 's'}` : 'N/A'}</span>
                   <span>M.M.: {exam.totalMarks || 0}</span>
               </div>
           </div>
@@ -254,7 +254,7 @@ const ExamDetail = () => {
                           {qList.map((q, qIndex) => {
                               const currentQNum = qNumber++;
                               return (
-                                  <div key={q._id || qIndex} className="flex border-b border-r border-black dark:border-gray-200 min-h-[80px]">
+                                  <div key={q._id || qIndex} className="question-card flex border-b border-r border-black dark:border-gray-200 min-h-[80px]">
                                       {/* Q.NO */}
                                       <div className="w-[10%] p-3 text-center text-sm font-bold border-r border-black dark:border-gray-200">
                                           {currentQNum}

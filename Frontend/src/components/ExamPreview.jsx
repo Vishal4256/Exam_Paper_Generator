@@ -23,7 +23,7 @@ const ExamPreview = ({ formData }) => {
             
             <div className="flex flex-wrap justify-between text-xs font-bold text-gray-800 border-b border-gray-300 pb-2 mb-4 gap-2">
                 <span className="w-full sm:w-auto">Date: {formData.examDate || '___/___/_____'}</span>
-                <span className="w-full sm:w-auto">Time: {formData.duration ? `${formData.duration} mins` : '___ mins'}</span>
+                <span className="w-full sm:w-auto">Time: {formData.duration ? `${formData.duration} Minute${formData.duration === 1 ? '' : 's'}` : '___ Minutes'}</span>
                 <span className="w-full sm:w-auto">Max Marks: {formData.totalMarks || '___'}</span>
             </div>
             

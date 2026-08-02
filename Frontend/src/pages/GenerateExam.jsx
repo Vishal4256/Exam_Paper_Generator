@@ -13,6 +13,7 @@ import Stepper from '../components/Stepper';
 import SectionCard from '../components/SectionCard';
 import ExamPreview from '../components/ExamPreview';
 import InstitutionCombobox from '../components/InstitutionCombobox';
+import NumericInput from '../components/NumericInput';
 
 const GenerateExam = () => {
     const { user } = useAuth();
@@ -138,7 +139,7 @@ const GenerateExam = () => {
             type: 'MCQ',
             difficulty: 'Medium',
             questionCount: 5,
-            optionalQuestions: 0,
+            optionalQuestions: '',
             marksPerQuestion: 1,
             topics: ''
         };
@@ -326,11 +327,11 @@ const GenerateExam = () => {
 
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Time Duration (Minutes) *</label>
-                    <input 
-                        type="number" 
-                        min="1"
+                    <NumericInput 
+                        min={1}
+                        placeholder="e.g. 180"
                         value={formData.duration}
-                        onChange={(e) => handleChange('duration', parseInt(e.target.value) || 0)}
+                        onChange={(val) => handleChange('duration', val)}
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     />
                 </div>
@@ -445,7 +446,7 @@ const GenerateExam = () => {
                         </div>
                         <div>
                             <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Duration</p>
-                            <p className="text-sm font-semibold text-gray-900">{formData.duration} mins</p>
+                            <p className="text-sm font-semibold text-gray-900">{formData.duration} Minute{formData.duration === 1 ? '' : 's'}</p>
                         </div>
                         <div>
                             <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Total Marks</p>

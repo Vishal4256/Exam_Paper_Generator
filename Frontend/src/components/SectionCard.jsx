@@ -1,6 +1,7 @@
 import React from 'react';
 import { Trash2, Copy, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
+import NumericInput from './NumericInput';
 
 const SectionCard = ({ 
     section, 
@@ -98,9 +99,7 @@ const SectionCard = ({
                         <option value="Short Answer">Short Answer</option>
                         <option value="Long Answer">Long Answer</option>
                         <option value="True/False">True / False</option>
-                        <option value="Fill in the Blanks">Fill in the Blanks</option>
-                        <option value="Case Study">Case Study</option>
-                        <option value="Numerical">Numerical</option>
+                        <option value="Coding">Coding</option>
                     </select>
                 </div>
                 <div>
@@ -120,22 +119,21 @@ const SectionCard = ({
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Total Questions</label>
-                        <input 
-                            type="number" 
-                            min="1"
+                        <NumericInput 
+                            min={1}
+                            placeholder="e.g. 5"
                             value={section.questionCount}
-                            onChange={(e) => handleChange('questionCount', parseInt(e.target.value) || 1)}
+                            onChange={(val) => handleChange('questionCount', val)}
                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-indigo-500"
                         />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Optional (Choice)</label>
-                        <input 
-                            type="number" 
-                            min="0"
+                        <NumericInput 
+                            min={0}
                             placeholder="e.g. 2"
-                            value={section.optionalQuestions || 0}
-                            onChange={(e) => handleChange('optionalQuestions', parseInt(e.target.value) || 0)}
+                            value={section.optionalQuestions}
+                            onChange={(val) => handleChange('optionalQuestions', val)}
                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-indigo-500"
                         />
                     </div>
@@ -143,12 +141,13 @@ const SectionCard = ({
 
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Marks per Question</label>
-                    <input 
-                        type="number" 
-                        min="0.5"
+                    <NumericInput 
+                        min={0.5}
                         step="0.5"
+                        allowDecimal={true}
+                        placeholder="e.g. 1"
                         value={section.marksPerQuestion}
-                        onChange={(e) => handleChange('marksPerQuestion', parseFloat(e.target.value) || 1)}
+                        onChange={(val) => handleChange('marksPerQuestion', val)}
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-indigo-500"
                     />
                 </div>

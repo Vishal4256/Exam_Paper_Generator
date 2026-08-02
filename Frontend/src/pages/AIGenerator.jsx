@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/axiosConfig';
 import { Sparkles, Save, RefreshCw, BookOpen, Layers, BarChart, Target, List, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
+import NumericInput from '../components/NumericInput';
 
 const AIGenerator = () => {
     const navigate = useNavigate();
@@ -186,13 +187,13 @@ const AIGenerator = () => {
                             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <List className="w-3 h-3" /> Number of Questions
                             </label>
-                            <input 
+                            <NumericInput 
                                 required 
-                                type="number" 
-                                min="1" 
-                                max="20"
+                                min={1} 
+                                max={20}
+                                placeholder="e.g. 5"
                                 value={formData.count} 
-                                onChange={(e) => setFormData({ ...formData, count: Number(e.target.value) })} 
+                                onChange={(val) => setFormData({ ...formData, count: val })} 
                                 className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-500/20 focus:bg-white dark:focus:bg-gray-800 transition-all"
                             />
                         </div>

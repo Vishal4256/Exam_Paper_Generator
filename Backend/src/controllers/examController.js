@@ -5,7 +5,13 @@ import axios from 'axios';
 
 const generateExam = async (req, res) => {
     try {
-        const { examMode, examTitle, description, collegeName, institutionType, department, academicSession, courseCode, logo, examHeaderStyle, subject, topic, examDate, duration, instructions, marksDistribution, blueprint, difficulty } = req.body;
+        console.log("=== Generate Exam API Called ===");
+        console.log("Payload received:", JSON.stringify(req.body, null, 2));
+        
+        const totalDbQuestions = await Question.countDocuments();
+        console.log("Total number of questions in the database:", totalDbQuestions);
+        
+        const { examMode, examTitle, description, collegeName, institutionType, department, academicSession, courseCode, logo, examHeaderStyle, subject, topic, examDate, duration, instructions, marksDistribution, blueprint, difficulty, selectedTopics } = req.body;
 
         let selectedQuestions = [];
         let totalCalculatedMarks = 0;
@@ -30,14 +36,27 @@ const generateExam = async (req, res) => {
                     if (section.difficulty && section.difficulty !== 'Mixed' && section.difficulty !== 'All') {
                         query.difficulty = section.difficulty;
                     }
-                    if (section.topics && section.topics.length > 0) {
-                        let topicsArray = Array.isArray(section.topics) ? section.topics : section.topics.split(',').map(t => t.trim()).filter(Boolean);
-                        if (topicsArray.length > 0) {
-                             query.topic = { $in: topicsArray.map(t => new RegExp(`^${t}$`, 'i')) };
-                        }
+                    
+                    // Use exam-level selectedTopics for the section's subject, if available
+                    if (selectedTopics && selectedTopics[sectionSubject] && selectedTopics[sectionSubject].length > 0) {
+                        const topicsArray = selectedTopics[sectionSubject];
+                        query.topic = { $in: topicsArray.map(t => new RegExp(`^${t}$`, 'i')) };
                     }
 
+                    console.log(`\n--- Blueprint Section: ${section.sectionName} ---`);
+                    console.log("Requested Questions:", count);
+                    console.log("Subject:", sectionSubject);
+                    console.log("Difficulty:", section.difficulty);
+                    console.log("Type:", sectionType);
+                    console.log("MongoDB Query:", JSON.stringify(query, null, 2));
+
                     let questions = await Question.find(query);
+                    console.log("Questions Found:", questions.length);
+                    
+                    if (questions.length > 0) {
+                        console.log("Sample matched question:", JSON.stringify(questions[0], null, 2));
+                    }
+
                     if (questions.length < count) {
                         return res.status(400).json({ msg: `Not enough questions for section "${section.sectionName}". Found ${questions.length}, needed ${count}.` });
                     }
@@ -175,6 +194,11 @@ const generateExam = async (req, res) => {
 
         // Populate question details before sending to frontend
         const fullExam = await Exam.findById(exam._id).populate('questions').populate('sectionedQuestions.questions');
+        
+        console.log(`\n=== Exam Generated Successfully ===`);
+        console.log(`Populated questions length: ${fullExam.questions.length}`);
+        console.log(`Populated sectionedQuestions length: ${fullExam.sectionedQuestions.length}`);
+        
         res.json(fullExam);
 
     } catch (err) {
@@ -291,7 +315,8 @@ const generatePDF = async (doc, exam, isAnswerKey) => {
     // Time & Marks row
     doc.moveTo(sideMargin, doc.y).lineTo(sideMargin + innerWidth, doc.y).lineWidth(0.5).stroke().moveDown(0.5);
     doc.font('Times-Bold').fontSize(10);
-    doc.text(`TIME: ${exam.duration ? exam.duration + ' HOURS' : 'N/A'}`, sideMargin, doc.y, { continued: true }).text(`M.M.: ${exam.totalMarks || 0}`, { align: 'right' });
+    const formattedDuration = exam.duration ? `${exam.duration} Minute${exam.duration === 1 ? '' : 's'}` : 'N/A';
+    doc.text(`Time: ${formattedDuration}`, sideMargin, doc.y, { continued: true }).text(`M.M.: ${exam.totalMarks || 0}`, { align: 'right' });
     doc.moveDown(0.5);
     doc.moveTo(sideMargin, doc.y).lineTo(sideMargin + innerWidth, doc.y).stroke().moveDown(1);
     

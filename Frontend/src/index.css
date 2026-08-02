@@ -42,3 +42,48 @@ img, svg, canvas {
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #exam-paper,
+  #exam-paper * {
+    visibility: visible;
+  }
+
+  #exam-paper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+    border: none;
+    box-shadow: none;
+  }
+
+  .sidebar,
+  .navbar,
+  .header,
+  .footer,
+  .controls,
+  .actions,
+  .print-button,
+  .download-button,
+  .no-print {
+    display: none !important;
+  }
+
+  .question-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}

@@ -3,6 +3,8 @@ import { useDropzone } from 'react-dropzone';
 import { UploadCloud, FileText, Image as ImageIcon, Loader2, Save, Download, RefreshCw, Trash2, CheckCircle, FileOutput, FilePlus2, BarChart2, FileUp, Sparkles, Copy, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import api from '../utils/axiosConfig';
 import { toast } from 'react-toastify';
+import NumericInput from '../components/NumericInput';
+
 const AIImport = () => {
   const [activeTab, setActiveTab] = useState('pdf');
   const [files, setFiles] = useState([]);
@@ -729,7 +731,7 @@ const AIImport = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marks</label>
-                      <input type="number" min="1" value={options.marks} onChange={e => setOptions({...options, marks: parseInt(e.target.value)})} className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm p-2 border" />
+                      <NumericInput min={1} placeholder="e.g. 1" value={options.marks} onChange={val => setOptions({...options, marks: val})} className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm p-2 border" />
                     </div>
                   </div>
                 </>
@@ -877,7 +879,7 @@ const AIImport = () => {
                       </select>
                       <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
                         <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">Marks:</span>
-                        <input type="number" min="1" value={q.marks || 1} onChange={e => updateQuestion(idx, 'marks', parseInt(e.target.value))} className="w-10 text-xs font-bold text-blue-800 dark:text-blue-200 bg-transparent border-none p-0 focus:ring-0 text-center" />
+                        <NumericInput min={1} placeholder="1" value={q.marks} onChange={val => updateQuestion(idx, 'marks', val)} className="w-10 text-xs font-bold text-blue-800 dark:text-blue-200 bg-transparent border-none p-0 focus:ring-0 text-center" />
                       </div>
                     </div>
 
