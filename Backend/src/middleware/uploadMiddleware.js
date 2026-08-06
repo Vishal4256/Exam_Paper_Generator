@@ -25,18 +25,23 @@ const storage = multer.diskStorage({
     }
 });
 
-// File filter - allow images and csv files
+// File filter - strictly allow images only for the Rich Text Editor
 const fileFilter = (req, file, cb) => {
-    const allowedExts = /jpeg|jpg|png|gif|webp|csv/;
-    const allowedMimes = /jpeg|jpg|png|gif|webp|csv|text\/csv|application\/vnd.ms-excel/;
+    const allowedExts = /jpeg|jpg|png|webp/;
+    const allowedMimes = /^image\/(jpeg|png|webp)$/;
     
     const extname = allowedExts.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedMimes.test(file.mimetype);
 
+    // Prevent executing scripts disguised as images
+    if (file.originalname.includes('.php') || file.originalname.includes('.js') || file.originalname.includes('.html')) {
+        return cb(new Error('Invalid file extension'), false);
+    }
+
     if (extname && mimetype) {
         return cb(null, true);
     } else {
-        cb(new Error('Only image and CSV files are allowed'));
+        cb(new Error('Security Error: Only valid image files (JPG, PNG, WEBP) are allowed.'));
     }
 };
 

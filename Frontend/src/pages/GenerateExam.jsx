@@ -1,29 +1,69 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams, useBlocker, useLocation } from 'react-router-dom';
 import api from '../utils/axiosConfig';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    AlertTriangle, Plus, Layout, ArrowRight, ArrowLeft, Save, Sparkles, Check 
+    AlertTriangle, Plus, Layout, ArrowRight, ArrowLeft, Save, Sparkles, Check, X, BarChart2
 } from 'lucide-react';
 
 // Components
 import Stepper from '../components/Stepper';
 import SectionCard from '../components/SectionCard';
 import ExamPreview from '../components/ExamPreview';
+import BlueprintAnalysisModal from '../components/BlueprintAnalysisModal';
 import InstitutionCombobox from '../components/InstitutionCombobox';
 import NumericInput from '../components/NumericInput';
+
+// Hooks
+import { useExamDraft, isDraftMeaningful } from '../hooks/useExamDraft';
+import { useNotifications } from '../context/NotificationsContext';
 
 const GenerateExam = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('editId');
+    const location = useLocation();
 
-    const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
     
+    // Draft Hook
+    const {
+        draftData: formData,
+        updateDraft,
+        saveDraft,
+        restoreDraft,
+        clearDraft,
+        markDraftAsResumed,
+        lastSavedTime,
+        isSaving,
+        hasUnsavedChanges,
+        hasExistingDraft
+    } = useExamDraft();
+
+    const { addNotification } = useNotifications();
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveDraft(true, false);
+                addNotification({
+                    type: 'success',
+                    title: 'Draft Saved',
+                    message: 'Your progress has been manually saved.'
+                });
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [saveDraft, addNotification]);
+
+    const currentStep = formData.currentStep || 1;
+    const setCurrentStep = (step) => updateDraft({ currentStep: step });
+
     // Dropdown Data
     const [subjectsList, setSubjectsList] = useState([]);
     const [topicsBySubject, setTopicsBySubject] = useState({});
@@ -35,30 +75,70 @@ const GenerateExam = () => {
         'Kendriya Vidyalaya'
     ]);
 
-    const [formData, setFormData] = useState({
-        institutionName: '', // Maps to Institution / School Name
-        examTitle: '',       // Maps to Paper Title
-        department: '',      // Maps to Board / University
-        courseCode: '',      // Maps to Class / Grade
-        selectedSubject: '', // Maps to Subject Name
-        duration: 180,
-        totalMarks: 100,
-        selectedTopics: {},  // subject -> [topic1, topic2]
-        blueprint: [],
-        
-        // Maintained for backend compatibility
-        examMode: 'Single Subject',
-        institutionType: 'School',
-        academicSession: '',
-        logo: '',
-        examHeaderStyle: 'Style 3',
-        instructions: '',
-        examDate: ''
-    });
+    // Modal states
+    const [showResumeModal, setShowResumeModal] = useState(false);
+    const [showLeaveModal, setShowLeaveModal] = useState(false);
+    const [isRestoring, setIsRestoring] = useState(false);
+    const [showRestoreBanner, setShowRestoreBanner] = useState(false);
+    const [showPostGenerateModal, setShowPostGenerateModal] = useState(false);
+    const [showBlueprintModal, setShowBlueprintModal] = useState(false);
+    const [generatedExamId, setGeneratedExamId] = useState(null);
 
+    // Fetch master data on mount
     useEffect(() => {
         fetchInitialData();
     }, []);
+
+    // Draft modal check on mount
+    useEffect(() => {
+        if (!editId && hasExistingDraft) {
+            setShowResumeModal(true);
+        }
+    }, [editId, hasExistingDraft]);
+
+    // Navigation Protection
+    const blocker = useBlocker(
+        ({ currentLocation, nextLocation }) =>
+            hasUnsavedChanges &&
+            currentLocation.pathname !== nextLocation.pathname &&
+            !nextLocation.pathname.startsWith('/exams/')
+    );
+
+    useEffect(() => {
+        if (blocker.state === 'blocked') {
+            setShowLeaveModal(true);
+        }
+    }, [blocker.state]);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = ''; // Standard browser prompt
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [hasUnsavedChanges]);
+
+    // Accessibility: Escape key closes modals
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                if (showLeaveModal) {
+                    setShowLeaveModal(false);
+                    blocker.reset?.();
+                } else if (showResumeModal) {
+                    handleStartNew();
+                } else if (showPostGenerateModal) {
+                    handlePostGenerateAction(false); // Default to discard on escape
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [showLeaveModal, showResumeModal, showPostGenerateModal, blocker]);
+
 
     const fetchInitialData = async () => {
         try {
@@ -83,8 +163,7 @@ const GenerateExam = () => {
                 const examRes = await api.get(`/exams/${editId}`);
                 const exam = examRes.data;
                 const subjectsArr = Array.isArray(exam.subject) ? exam.subject : exam.subject ? exam.subject.split(',').map(s=>s.trim()) : [];
-                setFormData(p => ({
-                    ...p,
+                updateDraft({
                     selectedSubject: subjectsArr.length > 0 ? subjectsArr[0] : '',
                     examTitle: exam.examTitle,
                     institutionName: exam.collegeName || exam.institutionName || '',
@@ -93,16 +172,17 @@ const GenerateExam = () => {
                     selectedTopics: exam.selectedTopics || {},
                     duration: exam.duration || 180,
                     totalMarks: exam.totalMarks || 100,
-                    blueprint: exam.blueprint || []
-                }));
-            } else if (instRes.data) {
+                    blueprint: exam.blueprint || [],
+                    currentStep: 1
+                }, true);
+            } else if (instRes.data && !hasExistingDraft && !isDraftMeaningful(formData)) {
+                // Only pre-fill defaults if we aren't loading a draft
                 const defaults = instRes.data;
-                setFormData(p => ({
-                    ...p,
-                    institutionName: defaults.institutionName || p.institutionName,
-                    department: defaults.department || p.department,
-                    examTitle: defaults.defaultExamTitle || p.examTitle
-                }));
+                updateDraft({
+                    institutionName: defaults.institutionName || formData.institutionName,
+                    department: defaults.department || formData.department,
+                    examTitle: defaults.defaultExamTitle || formData.examTitle
+                }, true);
                 
                 if (defaults.institutionName) {
                     setInstitutionOptions(prev => {
@@ -119,7 +199,7 @@ const GenerateExam = () => {
     };
 
     const handleChange = (field, value) => {
-        setFormData(p => ({ ...p, [field]: value }));
+        updateDraft({ [field]: value });
     };
 
     const handleTopicToggle = (topic) => {
@@ -186,39 +266,62 @@ const GenerateExam = () => {
         return { qCount, totalM, sections: formData.blueprint.length };
     }, [formData.blueprint]);
 
-    // Update total marks when blueprint changes
     useEffect(() => {
-        handleChange('totalMarks', stats.totalM);
+        if (formData.totalMarks !== stats.totalM) {
+            handleChange('totalMarks', stats.totalM);
+        }
     }, [stats.totalM]);
 
-    // --- Navigation & Validation ---
+    // --- Navigation & Validation UX ---
+    const highlightError = (id, message) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.focus();
+            el.classList.add('ring-2', 'ring-red-500', 'border-red-500');
+            setTimeout(() => el.classList.remove('ring-2', 'ring-red-500', 'border-red-500'), 3000);
+        }
+        toast.error(message);
+    };
+
     const handleNext = () => {
         if (currentStep === 1) {
-            if (!formData.institutionName) return toast.error("Institution / School Name is required.");
-            if (!formData.examTitle) return toast.error("Paper Title is required.");
-            if (!formData.selectedSubject) return toast.error("Subject is required.");
-            if (!formData.duration || formData.duration <= 0) return toast.error("Valid duration is required.");
+            if (!formData.institutionName) return highlightError('input-institution', "Institution is required.");
+            if (!formData.examTitle) return highlightError('input-examTitle', "Paper Title is required.");
+            if (!formData.selectedSubject) return highlightError('input-subject', "Subject is required.");
+            if (!formData.duration || formData.duration <= 0) return highlightError('input-duration', "Valid duration is required.");
             setCurrentStep(2);
         } else if (currentStep === 2) {
-            if (formData.blueprint.length === 0) return toast.error("Please add at least one section.");
-            const invalid = formData.blueprint.some(s => !s.sectionName || !s.questionCount || !s.marksPerQuestion);
-            if (invalid) return toast.error("Please fill in all required section fields correctly.");
+            if (formData.blueprint.length === 0) {
+                toast.error("Please add at least one section.");
+                return;
+            }
+            const invalidIndex = formData.blueprint.findIndex(s => !s.sectionName || !s.questionCount || !s.marksPerQuestion);
+            if (invalidIndex !== -1) {
+                if (!formData.blueprint[invalidIndex].sectionName) {
+                    highlightError(`section-name-${invalidIndex}`, "Section Name is required.");
+                } else {
+                    toast.error(`Please fill in all required fields for Section ${invalidIndex + 1}.`);
+                }
+                return;
+            }
             setCurrentStep(3);
         }
     };
 
     const handleGenerate = async () => {
+        if (loading) return;
         setLoading(true);
         try {
             const payload = {
                 ...formData,
-                collegeName: formData.institutionName, // Map for backend compatibility
+                collegeName: formData.institutionName,
                 subject: formData.selectedSubject,
-                difficultyMix: { easy: 30, medium: 50, hard: 20 } // Default for backend AI mix
+                difficultyMix: { easy: 30, medium: 50, hard: 20 }
             };
             const res = await api.post('/exams/generate', payload);
-            toast.success('Exam generated successfully!');
-            navigate(`/exams/${res.data._id}`);
+            setGeneratedExamId(res.data._id);
+            setShowPostGenerateModal(true);
         } catch (err) {
             toast.error(err.response?.data?.msg || 'Failed to generate exam');
         } finally {
@@ -226,7 +329,64 @@ const GenerateExam = () => {
         }
     };
 
+    const handlePostGenerateAction = (keepDraft) => {
+        if (!keepDraft) {
+            clearDraft();
+            addNotification({
+                type: 'info',
+                title: 'Draft Deleted',
+                message: 'The draft has been discarded.'
+            });
+        } else {
+            markDraftAsResumed();
+            addNotification({
+                type: 'success',
+                title: 'Draft Kept',
+                message: 'The draft has been saved for future use.'
+            });
+        }
+        setShowPostGenerateModal(false);
+        addNotification({
+            type: 'success',
+            title: 'Exam Generated',
+            message: 'Your exam paper was generated successfully.'
+        });
+        toast.success('Exam generated successfully!');
+        navigate(`/exams/${generatedExamId}`);
+    };
+
+    const handleResumeDraft = () => {
+        setIsRestoring(true);
+        setShowResumeModal(false);
+        
+        setTimeout(() => {
+            const success = restoreDraft();
+            setIsRestoring(false);
+            if (success) {
+                setShowRestoreBanner(true);
+                setTimeout(() => setShowRestoreBanner(false), 5000);
+            }
+        }, 800); // Simulate loading for smoother UX
+    };
+
+    const handleStartNew = () => {
+        clearDraft();
+        setShowResumeModal(false);
+    };
+
     // --- Renderers ---
+
+    if (isRestoring) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p className="text-gray-600 font-medium">Restoring your draft...</p>
+                </div>
+            </div>
+        );
+    }
+
     const renderStep1 = () => (
         <motion.div 
             key="step1"
@@ -242,6 +402,7 @@ const GenerateExam = () => {
                 <div className="md:col-span-2">
                     <label className="block text-sm font-bold text-gray-700 mb-2">Institution / School Name *</label>
                     <InstitutionCombobox 
+                        id="input-institution"
                         value={formData.institutionName}
                         onChange={(val) => handleChange('institutionName', val)}
                         options={institutionOptions}
@@ -251,6 +412,7 @@ const GenerateExam = () => {
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Paper Title *</label>
                     <input 
+                        id="input-examTitle"
                         type="text" 
                         placeholder="e.g. Mid Term Examination"
                         value={formData.examTitle}
@@ -262,9 +424,10 @@ const GenerateExam = () => {
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Board / University</label>
                     <input 
+                        id="input-department"
                         type="text" 
                         placeholder="e.g. CBSE, ICSE, State Board"
-                        value={formData.department} // Mapped to department
+                        value={formData.department}
                         onChange={(e) => handleChange('department', e.target.value)}
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     />
@@ -273,9 +436,10 @@ const GenerateExam = () => {
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Class / Grade</label>
                     <input 
+                        id="input-courseCode"
                         type="text" 
                         placeholder="e.g. Class 10, Grade 12"
-                        value={formData.courseCode} // Mapped to courseCode
+                        value={formData.courseCode}
                         onChange={(e) => handleChange('courseCode', e.target.value)}
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     />
@@ -284,6 +448,7 @@ const GenerateExam = () => {
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Subject Name *</label>
                     <select 
+                        id="input-subject"
                         value={formData.selectedSubject}
                         onChange={(e) => handleChange('selectedSubject', e.target.value)}
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
@@ -328,12 +493,24 @@ const GenerateExam = () => {
                 <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">Time Duration (Minutes) *</label>
                     <NumericInput 
+                        id="input-duration"
                         min={1}
                         placeholder="e.g. 180"
                         value={formData.duration}
                         onChange={(val) => handleChange('duration', val)}
                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     />
+                </div>
+
+                <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">General Instructions (Optional)</label>
+                    <textarea 
+                        id="input-instructions"
+                        placeholder="e.g. All questions are compulsory. Use of calculators is prohibited."
+                        value={formData.instructions}
+                        onChange={(e) => handleChange('instructions', e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all h-24 resize-y"
+                    ></textarea>
                 </div>
             </div>
         </motion.div>
@@ -350,20 +527,13 @@ const GenerateExam = () => {
                 <p className="text-gray-500">Set up the structure and marking scheme of your question paper.</p>
             </div>
 
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3 shadow-sm">
-                <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
-                <div>
-                    <h4 className="font-bold text-orange-800 text-sm">Free Plan Limits</h4>
-                    <p className="text-orange-700 text-xs mt-1">Maximum 10 questions per section and 30 questions per paper.</p>
-                </div>
-            </div>
 
             {/* Section Cards */}
             <div className="space-y-6">
                 <AnimatePresence>
                     {formData.blueprint.map((sec, i) => (
                         <SectionCard 
-                            key={i} // In a real app, use a unique ID if possible, but index is okay for this simple array
+                            key={i}
                             section={sec} 
                             index={i} 
                             totalSections={formData.blueprint.length}
@@ -512,9 +682,25 @@ const GenerateExam = () => {
 
     return (
         <div className="min-h-screen bg-gray-50/50 pb-32">
-            <div className="bg-white border-b border-gray-200 shadow-sm">
+            
+            {/* Recovery Banner */}
+            <AnimatePresence>
+                {showRestoreBanner && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: -50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -50 }}
+                        className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3"
+                    >
+                        <Check className="w-5 h-5" />
+                        <span className="font-bold text-sm">Draft restored successfully. Continue where you left off.</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
                 <div className="max-w-[1400px] mx-auto pt-6 px-4">
-                    <Stepper currentStep={currentStep} />
+                    <Stepper currentStep={currentStep} onStepClick={setCurrentStep} />
                 </div>
             </div>
 
@@ -528,52 +714,187 @@ const GenerateExam = () => {
 
             {/* Sticky Bottom Actions */}
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50">
-                <div className="max-w-[1400px] mx-auto flex items-center justify-between flex-wrap gap-4">
+                <div className="max-w-[1400px] mx-auto flex flex-col-reverse sm:flex-row items-center justify-between gap-4">
                     
-                    <button className="text-gray-500 hover:text-gray-900 font-bold text-sm flex items-center gap-2 transition-colors">
-                        <Save className="w-4 h-4" /> Save Draft
-                    </button>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 min-w-[160px]">
+                        {isSaving ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                <span>Saving...</span>
+                            </>
+                        ) : lastSavedTime ? (
+                            <>
+                                <Check className="w-4 h-4 text-green-500" />
+                                <span>Saved ✓ <span className="font-normal text-xs ml-1 opacity-70">Last saved: {lastSavedTime}</span></span>
+                            </>
+                        ) : null}
+                    </div>
 
-                    <div className="flex flex-1 justify-center">
+                    <div className="flex w-full sm:w-auto items-center justify-between sm:justify-center gap-4 flex-1">
                         {currentStep > 1 && (
                             <button 
-                                onClick={() => setCurrentStep(prev => prev - 1)}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl transition-colors flex items-center gap-2"
+                                onClick={() => setCurrentStep(currentStep - 1)}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl transition-colors flex items-center gap-2 flex-1 sm:flex-none justify-center"
                             >
                                 <ArrowLeft className="w-5 h-5" /> Previous
                             </button>
                         )}
-                    </div>
-
-                    <div>
+                        
                         {currentStep < 3 ? (
                             <button 
                                 onClick={handleNext}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20 flex-1 sm:flex-none justify-center"
                             >
                                 Next <ArrowRight className="w-5 h-5" />
                             </button>
                         ) : (
                             <button 
-                                onClick={handleGenerate}
+                                onClick={() => setShowBlueprintModal(true)}
                                 disabled={loading}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20 disabled:opacity-70 disabled:cursor-not-allowed"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20 disabled:opacity-70 disabled:cursor-not-allowed flex-1 sm:flex-none justify-center"
                             >
-                                {loading ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        Generating AI Paper...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles className="w-5 h-5" /> Generate Question Paper
-                                    </>
-                                )}
+                                <BarChart2 className="w-5 h-5" /> Analyze Blueprint
                             </button>
                         )}
                     </div>
+                    
+                    {/* Placeholder for layout balance on large screens */}
+                    <div className="hidden sm:block min-w-[160px]"></div>
                 </div>
             </div>
+
+            {/* Resume Draft Modal */}
+            <AnimatePresence>
+                {showResumeModal && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center"
+                        >
+                            <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Save className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-2">Resume Previous Exam?</h3>
+                            <p className="text-gray-500 mb-6">We found an unfinished exam.</p>
+                            
+                            <div className="flex flex-col gap-3">
+                                <button 
+                                    onClick={handleResumeDraft}
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg"
+                                >
+                                    Continue Editing
+                                </button>
+                                <button 
+                                    onClick={handleStartNew}
+                                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-xl transition-all"
+                                >
+                                    Start New
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Leave Confirmation Modal */}
+            <AnimatePresence>
+                {showLeaveModal && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border-t-4 border-amber-500"
+                        >
+                            <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <AlertTriangle className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-2">You have unsaved changes.</h3>
+                            <p className="text-gray-500 mb-6">Leave anyway?</p>
+                            
+                            <div className="flex gap-4">
+                                <button 
+                                    onClick={() => {
+                                        setShowLeaveModal(false);
+                                        blocker.reset?.();
+                                    }}
+                                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-xl transition-all"
+                                >
+                                    Stay
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        setShowLeaveModal(false);
+                                        blocker.proceed?.();
+                                    }}
+                                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                                >
+                                    Leave
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Post-Generate Modal */}
+            <AnimatePresence>
+                {showPostGenerateModal && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border-t-4 border-green-500"
+                        >
+                            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Check className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-2">Question Paper Generated Successfully!</h3>
+                            <p className="text-gray-500 mb-6">Would you like to keep this draft for future use?</p>
+                            
+                            <div className="flex flex-col gap-3">
+                                <button 
+                                    onClick={() => handlePostGenerateAction(true)}
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg"
+                                >
+                                    Keep Draft
+                                </button>
+                                <button 
+                                    onClick={() => handlePostGenerateAction(false)}
+                                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-xl transition-all"
+                                >
+                                    Discard Draft
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <BlueprintAnalysisModal 
+                isOpen={showBlueprintModal}
+                onClose={() => setShowBlueprintModal(false)}
+                initialBlueprint={formData.blueprint || []}
+                examMode={formData.examMode}
+                subject={formData.selectedSubject}
+                selectedTopics={formData.selectedTopics}
+                duration={formData.duration}
+                difficulty={formData.difficultyMix?.mixed ? 'Mixed' : 'Medium'}
+                onGenerateAnyway={() => {
+                    setShowBlueprintModal(false);
+                    handleGenerate();
+                }}
+                onOptimizeComplete={(optimizedBlueprint) => {
+                    updateDraft({ blueprint: optimizedBlueprint });
+                }}
+            />
+
         </div>
     );
 };

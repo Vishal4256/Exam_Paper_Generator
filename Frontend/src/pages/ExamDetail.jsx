@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../utils/axiosConfig';
-import { Download, Edit3, Key, Printer, Share2, Building2, Calendar, Clock, Award, XCircle, FileText } from 'lucide-react';
+import { getText } from '../utils/richText';
+import { Download, Edit3, Key, Printer, Share2, Building2, Calendar, Clock, Award, XCircle, FileText, ChevronRight } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const ExamDetail = () => {
@@ -263,14 +264,14 @@ const ExamDetail = () => {
                                       {/* QUESTION BODY */}
                                       <div className="w-[75%] p-4 border-r border-black dark:border-gray-200 flex flex-col justify-between">
                                           <div>
-                                              <p className="text-sm leading-relaxed mb-4 whitespace-pre-wrap">{q.questionText}</p>
+                                              <p className="text-sm leading-relaxed mb-4 whitespace-pre-wrap">{getText(q.questionText)}</p>
                                               
                                               {/* Options */}
                                               {previewMode === 'paper' && (
                                                   <div className="flex flex-col gap-2 ml-2">
                                                       {type === 'MCQ' && q.options && q.options.map((opt, idx) => (
                                                           <div key={idx} className="text-sm">
-                                                              {String.fromCharCode(65 + idx)}. {opt}
+                                                              {String.fromCharCode(65 + idx)}. {getText(opt)}
                                                           </div>
                                                       ))}
                                                       {type === 'True/False' && (
@@ -290,7 +291,7 @@ const ExamDetail = () => {
                                               {/* Answer Key Output */}
                                               {previewMode === 'answer' && (
                                                   <div className="mt-4 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                                                      Correct Answer: {q.correctAnswer || 'N/A'}
+                                                      Correct Answer: {getText(q.correctAnswer) || 'N/A'}
                                                   </div>
                                               )}
                                           </div>
@@ -350,5 +351,4 @@ const ExamDetail = () => {
 };
 
 export default ExamDetail;
-
-const ChevronRight = ({className}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
+

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { generateExam, getExams, getExam, downloadExamPDF, downloadAnswerKeyPDF, deleteExam, bulkDeleteExams } from "../controllers/examController.js";
+import { generateExam, getExams, getExam, downloadExamPDF, downloadAnswerKeyPDF, deleteExam, bulkDeleteExams, analyzeBlueprint, optimizeBlueprint } from "../controllers/examController.js";
 import auth from "../middleware/authMiddleware.js";
 
 const router = Router();
@@ -7,6 +7,10 @@ const router = Router();
 // @route   POST /api/exams/generate
 // @desc    Generate a randomized exam paper
 router.post('/generate', auth, generateExam);
+
+// Phase 3.1: Blueprint Analyzer
+router.post('/analyze-blueprint', auth, analyzeBlueprint);
+router.post('/optimize-blueprint', auth, optimizeBlueprint);
 
 // @route   GET /api/exams
 // @desc    Get all exams for the logged-in user

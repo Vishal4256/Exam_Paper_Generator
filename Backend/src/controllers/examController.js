@@ -2,14 +2,13 @@ import Exam from '../models/Exam.model.js';
 import Question from '../models/Question.model.js';
 import PDFDocument from 'pdfkit';
 import axios from 'axios';
+import { runBlueprintAnalysis } from '../services/blueprintAnalyzer/blueprintAnalyzer.js';
+import { optimizeBlueprint as optimizeBlueprintService } from '../services/blueprintAnalyzer/optimizeBlueprint.js';
+import { invalidateAnalyticsCache } from './analyticsController.js';
 
 const generateExam = async (req, res) => {
     try {
-        console.log("=== Generate Exam API Called ===");
-        console.log("Payload received:", JSON.stringify(req.body, null, 2));
-        
-        const totalDbQuestions = await Question.countDocuments();
-        console.log("Total number of questions in the database:", totalDbQuestions);
+        const totalDbQuestions = await Question.countDocuments({ user: req.user.id });
         
         const { examMode, examTitle, description, collegeName, institutionType, department, academicSession, courseCode, logo, examHeaderStyle, subject, topic, examDate, duration, instructions, marksDistribution, blueprint, difficulty, selectedTopics } = req.body;
 
@@ -43,35 +42,16 @@ const generateExam = async (req, res) => {
                         query.topic = { $in: topicsArray.map(t => new RegExp(`^${t}$`, 'i')) };
                     }
 
-                    console.log(`\n--- Blueprint Section: ${section.sectionName} ---`);
-                    console.log("Requested Questions:", count);
-                    console.log("Subject:", sectionSubject);
-                    console.log("Difficulty:", section.difficulty);
-                    console.log("Type:", sectionType);
-                    console.log("MongoDB Query:", JSON.stringify(query, null, 2));
-
-                    let questions = await Question.find(query);
-                    console.log("Questions Found:", questions.length);
-                    
-                    if (questions.length > 0) {
-                        console.log("Sample matched question:", JSON.stringify(questions[0], null, 2));
-                    }
+                    const questions = await Question.aggregate([
+                        { $match: query },
+                        { $sample: { size: count } }
+                    ]);
 
                     if (questions.length < count) {
                         return res.status(400).json({ msg: `Not enough questions for section "${section.sectionName}". Found ${questions.length}, needed ${count}.` });
                     }
 
-                    // Shuffle
-                    const fisherYatesShuffle = (arr) => {
-                        for (let i = arr.length - 1; i > 0; i--) {
-                            const j = Math.floor(Math.random() * (i + 1));
-                            [arr[i], arr[j]] = [arr[j], arr[i]];
-                        }
-                    };
-                    fisherYatesShuffle(questions);
-                    
-                    const picked = questions.slice(0, count);
-                    const pickedIds = picked.map(q => q._id);
+                    const pickedIds = questions.map(q => q._id);
                     selectedQuestions.push(...pickedIds);
                     sectionedQuestions.push({
                         sectionName: section.sectionName,
@@ -183,6 +163,8 @@ const generateExam = async (req, res) => {
 
         const exam = await newExam.save();
         
+        invalidateAnalyticsCache(req.user.id);
+        
         // Update usage count and last used date for selected questions
         await Question.updateMany(
             { _id: { $in: selectedQuestions } },
@@ -194,12 +176,7 @@ const generateExam = async (req, res) => {
 
         // Populate question details before sending to frontend
         const fullExam = await Exam.findById(exam._id).populate('questions').populate('sectionedQuestions.questions');
-        
-        console.log(`\n=== Exam Generated Successfully ===`);
-        console.log(`Populated questions length: ${fullExam.questions.length}`);
-        console.log(`Populated sectionedQuestions length: ${fullExam.sectionedQuestions.length}`);
-        
-        res.json(fullExam);
+        res.status(201).json(fullExam);
 
     } catch (err) {
         res.status(500).json({ msg: "Server Error", error: err.message });
@@ -548,6 +525,9 @@ const deleteExam = async (req, res) => {
         if (!exam) return res.status(404).json({ success: false, msg: "Exam not found" });
 
         await Exam.findByIdAndDelete(req.params.id);
+        
+        invalidateAnalyticsCache(req.user.id);
+        
         res.json({ success: true, message: "Exam deleted successfully" });
     } catch (err) {
         res.status(500).json({ success: false, msg: "Server Error", error: err.message });
@@ -573,4 +553,66 @@ const bulkDeleteExams = async (req, res) => {
     }
 };
 
-export { generateExam, getExams, getExam, downloadExamPDF, downloadAnswerKeyPDF, deleteExam, bulkDeleteExams };
+// ==========================
+// Phase 3.1: Blueprint Analyzer
+// ==========================
+
+const analyzeBlueprint = async (req, res) => {
+    try {
+        const { examMode, subject, blueprint, selectedTopics } = req.body;
+        
+        if (!blueprint || blueprint.length === 0) {
+            return res.status(400).json({ msg: "No blueprint provided for analysis." });
+        }
+
+        // 1. Fetch available questions for each section in the blueprint
+        const dbQuestionsBySection = [];
+        
+        for (const section of blueprint) {
+            const count = parseInt(section.questionCount) || 0;
+            const sectionType = section.type || 'MCQ';
+            let sectionSubject = subject;
+            if (examMode === 'Multi Subject') {
+                sectionSubject = section.subject || section.sectionName;
+            }
+
+            let query = { user: req.user.id, subject: sectionSubject, type: sectionType, status: 'active' };
+            if (section.difficulty && section.difficulty !== 'Mixed' && section.difficulty !== 'All') {
+                query.difficulty = section.difficulty;
+            }
+            
+            if (selectedTopics && selectedTopics[sectionSubject] && selectedTopics[sectionSubject].length > 0) {
+                const topicsArray = selectedTopics[sectionSubject];
+                query.topic = { $in: topicsArray.map(t => new RegExp(`^${t}$`, 'i')) };
+            }
+
+            // Fetch ALL matching questions for analysis
+            const questions = await Question.find(query).limit(500); // Limit to 500 per section for performance
+            dbQuestionsBySection.push(questions);
+        }
+
+        // 2. Pass to orchestrator
+        const analysis = await runBlueprintAnalysis(blueprint, dbQuestionsBySection, req.body);
+
+        return res.status(200).json(analysis);
+    } catch (err) {
+        console.error("Analyze Blueprint Error:", err);
+        return res.status(500).json({ msg: "Failed to analyze blueprint", error: err.message });
+    }
+};
+
+const optimizeBlueprint = async (req, res) => {
+    try {
+        const { blueprint, analysisResults } = req.body;
+        if (!blueprint || !analysisResults) {
+            return res.status(400).json({ msg: "Missing blueprint or analysis results for optimization." });
+        }
+        
+        const optimized = optimizeBlueprintService(blueprint, analysisResults);
+        return res.status(200).json({ optimizedBlueprint: optimized });
+    } catch (err) {
+        return res.status(500).json({ msg: "Failed to optimize blueprint", error: err.message });
+    }
+};
+
+export { generateExam, getExams, getExam, downloadExamPDF, downloadAnswerKeyPDF, deleteExam, bulkDeleteExams, analyzeBlueprint, optimizeBlueprint };

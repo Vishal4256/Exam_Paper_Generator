@@ -1,6 +1,7 @@
 import React from 'react';
-import { Bell, Moon, Menu } from 'lucide-react';
+import { Bell, Moon, Menu, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import NotificationDropdown from './NotificationDropdown';
 
 const Header = ({ setIsSidebarOpen }) => {
   const { user, toggleTheme } = useAuth();
@@ -19,11 +20,20 @@ const Header = ({ setIsSidebarOpen }) => {
         </button>
       </div>
 
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3 pr-6 border-r border-gray-200 dark:border-gray-700">
-          <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full transition-colors">
-            <Bell className="w-5 h-5" />
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'k', 'ctrlKey': true}))}
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg text-sm transition-colors"
+          >
+            <Search className="w-4 h-4" />
+            <span>Search...</span>
+            <span className="ml-2 px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600 text-[10px] font-bold shadow-sm">
+              Ctrl K
+            </span>
           </button>
+
+        <div className="flex items-center gap-3 pr-6 border-r border-gray-200 dark:border-gray-700">
+          <NotificationDropdown />
           <button onClick={toggleTheme} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full transition-colors">
             {/* Keeping Moon for simplicity, maybe replace with Sun dynamically */}
             <Moon className="w-5 h-5" />

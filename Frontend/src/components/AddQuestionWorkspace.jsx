@@ -3,11 +3,16 @@ import { motion } from 'framer-motion';
 import { ChevronLeft, Sparkles, ChevronRight, Save, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import api from '../utils/axiosConfig';
+import RichTextEditor from './editor/RichTextEditor';
+import { normalizeRichText } from '../utils/richText';
 
 const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
     const [isSaving, setIsSaving] = useState(false);
+    const [qualityScore, setQualityScore] = useState(null);
+    const [showQualityWarning, setShowQualityWarning] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
     const [activeAiAction, setActiveAiAction] = useState(null);
+    const [previewMode, setPreviewMode] = useState('Edit'); // Edit, Teacher, Student, PDF
 
     // Form State with backward compatibility defaults
     const [formData, setFormData] = useState({
@@ -15,11 +20,14 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
         topic: initialData?.topic || '',
         type: initialData?.type || 'MCQ',
         difficulty: initialData?.difficulty || 'Medium',
-        questionText: initialData?.questionText || '',
-        options: initialData?.options?.length === 4 ? initialData.options : 
-                 (initialData?.options?.length > 0 ? [...initialData.options, '', '', '', ''].slice(0, 4) : ['', '', '', '']),
-        correctAnswer: initialData?.correctAnswer || '',
-        explanation: initialData?.explanation || '',
+        questionText: normalizeRichText(initialData?.questionText),
+        options: initialData?.options?.length === 4 
+            ? initialData.options.map(normalizeRichText)
+            : (initialData?.options?.length > 0 
+                ? [...initialData.options.map(normalizeRichText), normalizeRichText(''), normalizeRichText(''), normalizeRichText(''), normalizeRichText('')].slice(0, 4) 
+                : [normalizeRichText(''), normalizeRichText(''), normalizeRichText(''), normalizeRichText('')]),
+        correctAnswer: initialData?.correctAnswer || '', // Keep as string referencing the Option index or plaintext for other types
+        explanation: normalizeRichText(initialData?.explanation),
         
         // Hidden fields for backend compatibility
         chapter: '',
@@ -64,10 +72,12 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
             if (generated) {
                 setFormData(prev => ({
                     ...prev,
-                    questionText: generated.questionText,
-                    options: generated.options?.length === 4 ? generated.options : (generated.options?.length > 0 ? [...generated.options, '', '', '', ''].slice(0, 4) : prev.options),
+                    questionText: normalizeRichText(generated.questionText),
+                    options: generated.options?.length === 4 
+                        ? generated.options.map(normalizeRichText) 
+                        : (generated.options?.length > 0 ? [...generated.options.map(normalizeRichText), normalizeRichText(''), normalizeRichText(''), normalizeRichText(''), normalizeRichText('')].slice(0, 4) : prev.options),
                     correctAnswer: generated.correctAnswer || '',
-                    explanation: generated.explanation || '',
+                    explanation: normalizeRichText(generated.explanation),
                     source: 'ai'
                 }));
                 toast.success('Question generated successfully!');
@@ -82,14 +92,14 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
     };
 
     const handleImproveQuestion = async () => {
-        if (!formData.questionText.trim()) return toast.error("Please enter a question first.");
+        if (!formData.questionText.plainText.trim()) return toast.error("Please enter a question first.");
         
         setAiLoading(true);
         setActiveAiAction('improve');
         try {
-            const response = await api.post('/ai/improve-question', { questionText: formData.questionText });
+            const response = await api.post('/ai/improve-question', { questionText: formData.questionText.plainText });
             if (response.data.text) {
-                setFormData(prev => ({ ...prev, questionText: response.data.text }));
+                setFormData(prev => ({ ...prev, questionText: normalizeRichText(response.data.text) }));
                 toast.success('Question improved!');
             }
         } catch (error) {
@@ -101,14 +111,14 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
     };
 
     const handleSimplifyQuestion = async () => {
-        if (!formData.questionText.trim()) return toast.error("Please enter a question first.");
+        if (!formData.questionText.plainText.trim()) return toast.error("Please enter a question first.");
         
         setAiLoading(true);
         setActiveAiAction('simplify');
         try {
-            const response = await api.post('/ai/simplify-question', { questionText: formData.questionText });
+            const response = await api.post('/ai/simplify-question', { questionText: formData.questionText.plainText });
             if (response.data.text) {
-                setFormData(prev => ({ ...prev, questionText: response.data.text }));
+                setFormData(prev => ({ ...prev, questionText: normalizeRichText(response.data.text) }));
                 toast.success('Question simplified!');
             }
         } catch (error) {
@@ -120,22 +130,22 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
     };
 
     const handleGenerateOptions = async () => {
-        if (!formData.questionText.trim()) return toast.error("Please enter a question first.");
+        if (!formData.questionText.plainText.trim()) return toast.error("Please enter a question first.");
         if (formData.type !== 'MCQ') return toast.error("Options can only be generated for MCQ type.");
         
         setAiLoading(true);
         setActiveAiAction('options');
         try {
             const response = await api.post('/ai/generate-options', { 
-                questionText: formData.questionText,
+                questionText: formData.questionText.plainText,
                 subject: formData.subject,
                 topic: formData.topic
             });
             if (response.data.options && response.data.options.length === 4) {
                 setFormData(prev => ({ 
                     ...prev, 
-                    options: response.data.options,
-                    correctAnswer: response.data.correctAnswer
+                    options: response.data.options.map(normalizeRichText),
+                    correctAnswer: String(response.data.correctAnswer)
                 }));
                 toast.success('Options generated!');
             }
@@ -147,27 +157,27 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
         }
     };
 
-    const handleSave = async (e) => {
+    const handleSave = async (e, bypassQualityCheck = false) => {
         if(e) e.preventDefault();
         
-        // Strip out HTML tags from question text in case it came from the old rich text editor
-        let cleanQuestionText = formData.questionText;
-        // Simple HTML strip if it looks like HTML
-        if (cleanQuestionText.includes('<') && cleanQuestionText.includes('>')) {
-            const temp = document.createElement("div");
-            temp.innerHTML = cleanQuestionText;
-            cleanQuestionText = temp.textContent || temp.innerText || "";
-        }
-
-        if (!cleanQuestionText.trim()) return toast.error('Question text is required');
+        if (!formData.questionText.plainText.trim()) return toast.error('Question text is required');
         if (!formData.subject.trim()) return toast.error('Subject is required');
 
         if (formData.type === 'MCQ') {
-            const filledOptions = formData.options.filter(o => o.trim() !== '');
+            const filledOptions = formData.options.filter(o => o.plainText.trim() !== '');
             if (filledOptions.length < 2) return toast.error('At least 2 options are required for MCQ');
             if (!formData.correctAnswer) return toast.error('Please select the correct answer');
         } else {
-            if (!formData.correctAnswer.trim()) return toast.error('Correct Answer is required');
+            if (typeof formData.correctAnswer === 'object') {
+                if (!formData.correctAnswer.plainText.trim()) return toast.error('Correct Answer is required');
+            } else {
+                if (!String(formData.correctAnswer).trim()) return toast.error('Correct Answer is required');
+            }
+        }
+
+        if (!bypassQualityCheck && qualityScore !== null && qualityScore < 40) {
+            setShowQualityWarning(true);
+            return;
         }
 
         setIsSaving(true);
@@ -182,31 +192,27 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
                 `negativeMarks:${formData.negativeMarks}`
             ].filter(t => t && !t.endsWith(':'));
 
-            const payload = new FormData();
-            payload.append('questionText', cleanQuestionText);
-            payload.append('subject', formData.subject);
-            payload.append('topic', formData.topic);
-            payload.append('difficulty', formData.difficulty);
-            payload.append('type', formData.type);
-            payload.append('marks', formData.marks);
-            payload.append('bloomLevel', formData.bloomLevel);
-            payload.append('explanation', formData.explanation);
-            payload.append('status', formData.status);
-            payload.append('source', formData.source);
-            payload.append('tags', JSON.stringify(encodedTags));
-
-            if (formData.type === 'MCQ') {
-                payload.append('options', JSON.stringify(formData.options));
-                payload.append('correctAnswer', formData.correctAnswer);
-            } else {
-                payload.append('correctAnswer', formData.correctAnswer);
-            }
+            const payload = {
+                questionText: formData.questionText,
+                subject: formData.subject,
+                topic: formData.topic,
+                difficulty: formData.difficulty,
+                type: formData.type,
+                marks: formData.marks,
+                bloomLevel: formData.bloomLevel,
+                explanation: formData.explanation,
+                status: formData.status,
+                source: formData.source,
+                tags: encodedTags,
+                options: formData.type === 'MCQ' ? formData.options : [],
+                correctAnswer: formData.correctAnswer
+            };
 
             if (editingId) {
-                await api.put(`/questions/${editingId}`, payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+                await api.put(`/questions/${editingId}`, payload);
                 toast.success('Question updated successfully!');
             } else {
-                await api.post('/questions', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+                await api.post('/questions', payload);
                 toast.success('Question added successfully!');
             }
             
@@ -234,9 +240,25 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
                 >
                     <ChevronLeft className="w-5 h-5" />
                 </button>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white flex-1">
                     {editingId ? 'Edit Question' : 'Add New Question'}
                 </h1>
+                
+                <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+                    {['Edit', 'Teacher', 'Student', 'PDF'].map(mode => (
+                        <button
+                            key={mode}
+                            onClick={() => setPreviewMode(mode)}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                                previewMode === mode 
+                                    ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                    : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                            }`}
+                        >
+                            {mode}
+                        </button>
+                    ))}
+                </div>
             </header>
 
             {/* Main Content Workspace */}
@@ -245,8 +267,8 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
                 {/* Left Form Area */}
                 <form onSubmit={handleSave} className="flex-1 space-y-6">
                     
-                    {/* Top Row: Subject, Topic, Type, Difficulty */}
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {previewMode === 'Edit' && (
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Subject *</label>
                             <input 
@@ -294,79 +316,154 @@ const AddQuestionWorkspace = ({ onClose, editingId, initialData }) => {
                             </select>
                         </div>
                     </div>
+                    )}
 
-                    {/* Question Box */}
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                        <label className="block text-lg font-bold text-gray-900 dark:text-white mb-3">Question</label>
-                        <textarea 
-                            value={formData.questionText}
-                            onChange={e => setFormData({...formData, questionText: e.target.value})}
-                            placeholder="Type your question here..."
-                            className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-4 text-base min-h-[150px] resize-y outline-none transition-all"
-                            required
-                        />
-                    </div>
+                    {previewMode === 'Edit' ? (
+                        <>
+                            {/* Question Box */}
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <label className="block text-lg font-bold text-gray-900 dark:text-white mb-3">Question</label>
+                                <RichTextEditor 
+                                    value={formData.questionText}
+                                    onChange={(val) => setFormData({ ...formData, questionText: val })}
+                                    enableQualityAnalysis={true}
+                                    onQualityChange={(data) => setQualityScore(data?.overall || null)}
+                                />
+                            </div>
 
-                    {/* Options Box (If MCQ) */}
-                    {(formData.type === 'MCQ' || formData.type === 'True/False') ? (
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                            <label className="block text-lg font-bold text-gray-900 dark:text-white mb-4">Options</label>
-                            
-                            <div className="space-y-4 mb-6">
-                                {formData.options.map((opt, index) => (
-                                    <div key={index} className="flex items-center gap-4">
-                                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
-                                            {String.fromCharCode(65 + index)}
-                                        </div>
-                                        <input 
-                                            type="text" 
-                                            value={opt} 
-                                            onChange={e => handleOptionChange(index, e.target.value)} 
-                                            placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                                            className="flex-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-3 outline-none"
-                                        />
+                            {/* Options Box (If MCQ) */}
+                            {(formData.type === 'MCQ' || formData.type === 'True/False') ? (
+                                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                    <label className="block text-lg font-bold text-gray-900 dark:text-white mb-4">Options</label>
+                                    
+                                    <div className="space-y-4 mb-6">
+                                        {formData.options.map((opt, index) => (
+                                            <div key={index} className="flex flex-col sm:flex-row gap-4 items-start">
+                                                <div className="w-10 h-10 mt-2 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg font-bold text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+                                                    {String.fromCharCode(65 + index)}
+                                                </div>
+                                                <div className="flex-1 w-full">
+                                                    <RichTextEditor 
+                                                        value={opt}
+                                                        onChange={(val) => handleOptionChange(index, val)}
+                                                        showToolbar={false}
+                                                        minHeight="80px"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
 
-                            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                                <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Correct Answer *</label>
-                                <select 
-                                    value={formData.correctAnswer} 
-                                    onChange={e => setFormData({...formData, correctAnswer: e.target.value})}
-                                    className="w-full max-w-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3"
-                                    required
-                                >
-                                    <option value="" disabled>Select correct option...</option>
-                                    {formData.options.map((opt, index) => (
-                                        opt.trim() && <option key={index} value={opt}>Option {String.fromCharCode(65 + index)} ({opt})</option>
-                                    ))}
-                                </select>
+                                    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Correct Answer *</label>
+                                        <select 
+                                            value={formData.correctAnswer} 
+                                            onChange={e => setFormData({...formData, correctAnswer: e.target.value})}
+                                            className="w-full max-w-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3"
+                                            required
+                                        >
+                                            <option value="" disabled>Select correct option...</option>
+                                            {formData.options.map((opt, index) => (
+                                                opt.plainText.trim() && <option key={index} value={opt.plainText}>Option {String.fromCharCode(65 + index)} ({opt.plainText.substring(0, 30)}...)</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                    <label className="block text-lg font-bold text-gray-900 dark:text-white mb-3">Correct Answer</label>
+                                    <RichTextEditor 
+                                        value={typeof formData.correctAnswer === 'string' ? normalizeRichText(formData.correctAnswer) : formData.correctAnswer}
+                                        onChange={(val) => setFormData({ ...formData, correctAnswer: val })}
+                                        minHeight="100px"
+                                        showToolbar={false}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Explanation Box */}
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <label className="block text-lg font-bold text-gray-900 dark:text-white mb-3">Explanation (Optional)</label>
+                                <RichTextEditor 
+                                    value={formData.explanation}
+                                    onChange={(val) => setFormData({ ...formData, explanation: val })}
+                                    minHeight="100px"
+                                />
                             </div>
-                        </div>
+                        </>
                     ) : (
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                            <label className="block text-lg font-bold text-gray-900 dark:text-white mb-3">Correct Answer</label>
-                            <textarea 
-                                value={formData.correctAnswer}
-                                onChange={e => setFormData({...formData, correctAnswer: e.target.value})}
-                                placeholder="Type the correct answer here..."
-                                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-4 text-base min-h-[100px] resize-y outline-none"
-                                required
-                            />
+                        <div className={`bg-white dark:bg-gray-800 p-8 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm ${previewMode === 'PDF' ? 'font-serif text-black bg-white' : ''}`}>
+                            {previewMode === 'PDF' && (
+                                <div className="text-center border-b pb-4 mb-6 text-gray-800">
+                                    <h2 className="text-xl font-bold uppercase tracking-widest">{formData.subject || 'Subject'} Examination</h2>
+                                    <p className="text-sm">Topic: {formData.topic}</p>
+                                </div>
+                            )}
+                            
+                            <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: formData.questionText?.htmlCache }} />
+                            
+                            {(formData.type === 'MCQ' || formData.type === 'True/False') && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                                    {formData.options.map((opt, i) => {
+                                        if (!opt.plainText.trim()) return null;
+                                        return (
+                                            <div key={i} className="flex gap-3">
+                                                <span className="font-bold">{String.fromCharCode(65 + i)}.</span>
+                                                <div className="prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: opt.htmlCache }} />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            
+                            {previewMode === 'Teacher' && (
+                                <div className="mt-8 pt-6 border-t border-indigo-100 dark:border-indigo-900/30">
+                                    <h4 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 mb-2">Answer Key:</h4>
+                                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl">
+                                        <p className="font-bold text-gray-900 dark:text-white mb-2">Correct Answer: {typeof formData.correctAnswer === 'string' ? formData.correctAnswer : formData.correctAnswer?.plainText}</p>
+                                        {formData.explanation?.plainText && (
+                                            <div>
+                                                <span className="text-xs font-bold text-gray-500 uppercase">Explanation</span>
+                                                <div className="prose prose-sm dark:prose-invert mt-1" dangerouslySetInnerHTML={{ __html: formData.explanation.htmlCache }} />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {/* Explanation Box */}
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                        <label className="block text-lg font-bold text-gray-900 dark:text-white mb-3">Explanation (Optional)</label>
-                        <textarea 
-                            value={formData.explanation}
-                            onChange={e => setFormData({...formData, explanation: e.target.value})}
-                            placeholder="Explain why the answer is correct..."
-                            className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-4 text-base min-h-[100px] resize-y outline-none"
-                        />
-                    </div>
+                    {/* Quality Warning Modal */}
+                    {showQualityWarning && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6 border border-red-100 dark:border-red-900/30">
+                                <div className="flex items-center gap-3 text-red-600 dark:text-red-400 mb-4">
+                                    <AlertTriangle className="w-8 h-8" />
+                                    <h3 className="text-xl font-bold">Poor Quality Detected</h3>
+                                </div>
+                                <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                    This question has a quality score of <strong>{qualityScore}/100</strong>. Are you sure you want to save it as is? We recommend reviewing the suggestions in the Quality Dashboard first.
+                                </p>
+                                <div className="flex justify-end gap-3">
+                                    <button 
+                                        onClick={() => setShowQualityWarning(false)}
+                                        className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                                    >
+                                        Improve Question
+                                    </button>
+                                    <button 
+                                        onClick={(e) => {
+                                            setShowQualityWarning(false);
+                                            handleSave(e, true);
+                                        }}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium shadow-sm"
+                                    >
+                                        Save Anyway
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Bottom Action Buttons */}
                     <div className="flex justify-end gap-4 pt-4 pb-12">

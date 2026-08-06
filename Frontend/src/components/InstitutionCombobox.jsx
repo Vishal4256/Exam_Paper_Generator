@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, ChevronDown, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const InstitutionCombobox = ({ value, onChange, options = [] }) => {
+const InstitutionCombobox = ({ value, onChange, options = [], id }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
     const wrapperRef = useRef(null);
@@ -44,6 +44,7 @@ const InstitutionCombobox = ({ value, onChange, options = [] }) => {
         <div ref={wrapperRef} className="relative w-full">
             <div className="relative flex items-center">
                 <input
+                    id={id}
                     type="text"
                     placeholder="Select an institution or enter custom name"
                     value={search}

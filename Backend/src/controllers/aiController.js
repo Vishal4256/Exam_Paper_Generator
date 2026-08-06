@@ -93,24 +93,45 @@ const generateAIQuestions = async (req, res) => {
 
 const improveQuestion = async (req, res) => {
     try {
-        const { questionText } = req.body;
-        if (!questionText) return res.status(400).json({ msg: "Please provide question text." });
+        const { questionHtml, analysisData } = req.body;
+        if (!questionHtml) return res.status(400).json({ msg: "Please provide question html." });
 
         let geminiKey = process.env.GEMINI_API_KEY;
         if (!geminiKey || geminiKey === 'your_api_key_here') return res.status(400).json({ msg: "Gemini API key not configured." });
 
+        let analysisContext = "";
+        if (analysisData && analysisData.suggestions) {
+            const allSuggestions = [
+                ...(analysisData.suggestions.critical || []),
+                ...(analysisData.suggestions.warnings || []),
+                ...(analysisData.suggestions.recommendations || [])
+            ];
+            if (allSuggestions.length > 0) {
+                analysisContext = `
+                Please incorporate the following feedback to improve this question:
+                ${allSuggestions.map(s => `- ${s}`).join('\n')}
+                `;
+            }
+        }
+
         const prompt = `
             Improve the following academic question. Fix any grammar issues, clarify the wording, and ensure it sounds professional. 
-            Do NOT change the underlying meaning or the correct answer. 
-            Return ONLY the updated question text, nothing else.
+            Do NOT change the underlying meaning or the correct answer.
+            ${analysisContext}
             
-            Question: ${questionText}
+            IMPORTANT: The question is provided in HTML format (e.g. <p>, <strong>, <em>, <table>, <img>). 
+            You MUST return ONLY the updated HTML. Do not strip tags. Do not wrap in markdown (like \`\`\`html).
+            
+            Question HTML: ${questionHtml}
         `;
 
         const ai = new GoogleGenAI({ apiKey: geminiKey });
         const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
         
-        res.status(200).json({ success: true, text: response.text.trim() });
+        let improved = response.text.trim();
+        improved = improved.replace(/```html/gi, '').replace(/```/g, '').trim();
+        
+        res.status(200).json({ success: true, html: improved });
     } catch (error) {
         console.error("Error improving question:", error);
         res.status(500).json({ msg: "Unable to improve question.", error: error.message });

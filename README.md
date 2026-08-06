@@ -1,59 +1,98 @@
-# Exam & Question Paper Generator
+# ExamFlow - AI-Powered Exam Management Platform
 
-An AI-powered web application for generating, managing, and exporting examination question papers.
+![Version](https://img.shields.io/badge/version-v2.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Build](https://img.shields.io/badge/build-passing-success.svg)
 
-## 🚀Overview
+ExamFlow is a comprehensive, production-ready AI-powered exam management and generation platform built on the MERN stack. It empowers educators and institutions to efficiently manage question banks, import bulk data, and dynamically generate balanced exam papers with rich formatting.
 
-This project is a full-stack solution designed to help educators and institutions seamlessly create exams and question papers. By integrating powerful AI capabilities, the platform simplifies question generation, manages exam templates, and provides seamless exporting and sharing functionalities.
+---
 
-## 🌟 Key Features
+# Live Demo
 
-*   **AI-Assisted Question Generation**: Leverage AI models (OpenAI/Google Gemini) to automatically generate diverse and high-quality questions.
-*   **Exam & Question Management**: Create, edit, and organize individual questions and full question papers.
-*   **Template Support**: Save and reuse exam templates for standardized test formatting.
-*   **Secure Authentication**: User sign-up, login, and secure session management using JWT and bcrypt.
-*   **Export Options**: Generate and download question papers in high-quality PDF format.
-*   **Email Integration**: Send exams or notifications directly to users via email.
+**Frontend:**
+https://your-frontend.vercel.app
 
-## 🛠️ Technology Stack
+**Backend API:**
+https://your-backend.onrender.com
 
-### Frontend
-*   **Framework**: React 19 with Vite
-*   **Styling**: Tailwind CSS & Framer Motion for smooth animations
-*   **Routing**: React Router DOM
-*   **Export Utilities**: html2canvas & jsPDF for client-side PDF rendering
-*   **Icons & Charts**: Lucide React & Recharts
+**API Docs:**
+/api-docs
 
-### Backend
-*   **Environment**: Node.js & Express.js
-*   **Database**: MongoDB (via Mongoose)
-*   **Authentication**: JSON Web Tokens (JWT) & bcrypt for password hashing
-*   **AI Integration**: `@google/genai` and `openai` SDKs
-*   **Utilities**: `multer` for file uploads, `pdfkit` for server-side PDF generation, and `nodemailer` for email services.
+---
 
-## 📂 Project Structure
+## Features
 
-*   `/Frontend` - Contains the React application and UI components.
-*   `/Backend` - Contains the Node.js Express server, database models, and API routes.
+* Authentication
+* Question Bank
+* Rich Text Editor
+* Import Wizard
+* Blueprint Analyzer
+* Question Quality Analyzer
+* Analytics Dashboard
+* AI Health Center
+* PDF Export
+* Draft Management
+* Bulk Operations
+* Advanced Search
 
-## 🚀 Getting Started
+---
 
-### Prerequisites
-*   Node.js installed
-*   MongoDB instance (local or Atlas)
-*   API keys for AI services (OpenAI/Google Gemini)
+## Screenshots
 
-### Backend Setup
-1.  Navigate to the `Backend` directory.
-2.  Run `npm install` to install dependencies.
-3.  Copy `.env.example` to `.env` and configure your environment variables (Database URI, JWT secret, AI API keys).
-4.  Run `npm run dev` to start the backend server.
+*Note: Replace with actual screenshots when recorded.*
 
-### Frontend Setup
-1.  Navigate to the `Frontend` directory.
-2.  Run `npm install` to install dependencies.
-3.  Run `npm run dev` to start the frontend development server.
+* **Dashboard**: `![Dashboard](docs/screenshots/dashboard.png)`
+* **Question Bank**: `![Question Bank](docs/screenshots/question-bank.png)`
+* **Generate Exam**: `![Generate Exam](docs/screenshots/generate-exam.png)`
+* **Analytics**: `![Analytics](docs/screenshots/analytics.png)`
+* **Blueprint Analyzer**: `![Blueprint Analyzer](docs/screenshots/editor.png)`
+* **Rich Editor**: `![Rich Editor](docs/screenshots/editor.png)`
+* **Import Wizard**: `![Import Wizard](docs/screenshots/import.png)`
 
-## 📜 License
+---
 
-This project is licensed under the ISC License.
+## 🏗️ Architecture
+
+ExamFlow uses a robust MERN stack architecture with AI enhancements. 
+For detailed architecture and database schema, see:
+- [High-Level Architecture](docs/ARCHITECTURE.md)
+- [Database Schema](docs/DATABASE_SCHEMA.md)
+
+---
+
+## 🛠️ Installation & Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/ExamFlow.git
+   cd ExamFlow
+   ```
+
+2. **Backend Setup**
+   ```bash
+   cd Backend
+   npm install
+   cp .env.example .env
+   # Populate .env with your MongoDB URI, JWT Secret, and Gemini API Key
+   npm run dev
+   ```
+
+3. **Frontend Setup**
+   ```bash
+   cd Frontend
+   npm install
+   npm run dev
+   ```
+
+## 🌍 Deployment
+
+- **Frontend:** Optimized for Vercel. Run `npm run build` to generate the static `dist/` folder.
+- **Backend:** Designed for Render or Heroku. The backend is completely stateless during imports and relies on MongoDB for persistence.
+
+## 📖 Documentation
+
+- [API Reference](docs/API_REFERENCE.md)
+- [Interview Guide](docs/INTERVIEW_GUIDE.md)
+- [Portfolio Case Study](docs/PORTFOLIO_CASE_STUDY.md)
+- [Future Roadmap](docs/ROADMAP.md)

@@ -1,23 +1,84 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../utils/axiosConfig';
+import { getText } from '../utils/richText';
 import { Search, Plus, Filter, Trash2, Edit2, ChevronLeft, ChevronRight, Check, Download, Upload, X, MoreVertical, Layers, SortAsc, FileText, ListFilter } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Papa from 'papaparse';
 import AddQuestionWorkspace from '../components/AddQuestionWorkspace';
+import AdvancedFilters from '../components/AdvancedFilters';
+import BulkActionModal from '../components/BulkActionModal';
+import ImportWizard from '../components/ImportWizard';
+import { Archive, Copy, Tag, BookOpen, BarChart } from 'lucide-react';
+
+const highlightText = (textObj, query) => {
+    let text = textObj;
+    if (textObj && typeof textObj === 'object') {
+        text = textObj.plainText || textObj.questionText || '';
+    }
+    if (typeof text !== 'string') text = String(text || '');
+    if (!query) return text;
+    // Escape regex characters in query
+    const escapedQuery = query.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
+    return parts.map((part, i) => 
+        part.toLowerCase() === query.toLowerCase() ? <span key={i} className="bg-yellow-200 text-yellow-900 rounded-sm px-0.5">{part}</span> : part
+    );
+};
 const Questions = () => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   
-  const [filters, setFilters] = useState({ subject: '', difficulty: '', type: '' });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [sort, setSort] = useState('newest');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Derive state directly from URL params for perfect browser back/forward support
+  const filters = {
+      subject: searchParams.get('subject') ? searchParams.get('subject').split(',') : [],
+      difficulty: searchParams.get('difficulty') ? searchParams.get('difficulty').split(',') : [],
+      type: searchParams.get('type') ? searchParams.get('type').split(',') : [],
+      bloomLevel: searchParams.get('bloomLevel') ? searchParams.get('bloomLevel').split(',') : [],
+      status: searchParams.get('status') ? searchParams.get('status').split(',') : []
+  };
   
-  const handleFilterChange = (field, value) => {
-      setFilters(prev => ({ ...prev, [field]: value }));
-      setPagination(p => ({ ...p, page: 1 }));
+  const searchQuery = searchParams.get('q') || '';
+  const sort = searchParams.get('sort') || 'newest';
+  
+  // Local state for debouncing
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+
+  const setFilters = (updater) => {
+      setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          const nextFilters = typeof updater === 'function' ? updater(filters) : updater;
+          
+          Object.keys(nextFilters).forEach(key => {
+              if (nextFilters[key] && nextFilters[key].length > 0) {
+                  newParams.set(key, nextFilters[key].join(','));
+              } else {
+                  newParams.delete(key);
+              }
+          });
+          return newParams;
+      }, { replace: true });
+  };
+
+  const updateSearchQuery = (val) => {
+      setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          if (val) newParams.set('q', val);
+          else newParams.delete('q');
+          return newParams;
+      }, { replace: true });
+  };
+
+  const updateSort = (val) => {
+      setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          if (val && val !== 'newest') newParams.set('sort', val);
+          else newParams.delete('sort');
+          return newParams;
+      }, { replace: true });
   };
 
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -32,9 +93,10 @@ const Questions = () => {
   const [subjects, setSubjects] = useState([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false); 
   
-  const [csvPreview, setCsvPreview] = useState({ isOpen: false, rows: [], valid: [], invalid: [], duplicates: [] });
+  const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [bulkModalAction, setBulkModalAction] = useState(null);
   const exportRef = useRef(null);
 
   useEffect(() => {
@@ -51,16 +113,18 @@ const Questions = () => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setPagination(p => ({ ...p, page: 1 }));
-    }, 300);
+      if (searchQuery !== debouncedSearch) {
+          setDebouncedSearch(searchQuery);
+          setPagination(p => ({ ...p, page: 1 }));
+      }
+    }, 500);
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
   useEffect(() => {
     fetchQuestions();
     setSelectedIds(new Set());
-  }, [debouncedSearch, filters.subject, filters.difficulty, filters.type, sort, pagination.page]);
+  }, [debouncedSearch, JSON.stringify(filters), sort, pagination.page]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -80,17 +144,27 @@ const Questions = () => {
     setLoading(true);
     try {
       const params = { page: pagination.page, limit: 10, sort };
-      if (filters.subject) params.subject = filters.subject;
-      if (filters.difficulty) params.difficulty = filters.difficulty;
-      if (filters.type) params.type = filters.type;
+      
+      Object.keys(filters).forEach(key => {
+          if (filters[key] && filters[key].length > 0) {
+              params[key] = filters[key].join(',');
+          }
+      });
+      
+      const qualityMin = searchParams.get('qualityMin');
+      const qualityMax = searchParams.get('qualityMax');
+      const missingExplanation = searchParams.get('missingExplanation');
+
+      if (qualityMin) params.qualityMin = qualityMin;
+      if (qualityMax) params.qualityMax = qualityMax;
+      if (missingExplanation) params.missingExplanation = missingExplanation;
+
       if (debouncedSearch) params.search = debouncedSearch;
 
-      const queryString = new URLSearchParams(params).toString();
-      const requestUrl = `/api/questions?${queryString}`;
-      console.log("Fetching questions:", requestUrl);
-
       const res = await api.get('/questions', { params });
-      setQuestions(res.data.questions || []);
+      
+      const incoming = res.data.questions || [];
+      setQuestions(incoming);
       
       setPagination(prev => ({ 
           ...prev, 
@@ -100,12 +174,16 @@ const Questions = () => {
           absoluteTotal: res.data.absoluteTotal || 0
       }));
       
-      const allRes = await api.get('/questions', { params: { limit: 1000 } });
-      const uniqueSubjects = [...new Set((allRes.data.questions || []).map(q => q.subject))];
-      setSubjects(uniqueSubjects);
+      // Accumulate subjects from currently fetched page — no extra API call needed
+      if (incoming.length > 0) {
+          setSubjects(prev => {
+              const combined = new Set([...prev, ...incoming.map(q => q.subject).filter(Boolean)]);
+              return [...combined].sort();
+          });
+      }
     } catch (err) {
       console.error('Error fetching questions:', err);
-      toast.error('Failed to load questions. Please retry.');
+      toast.error('Failed to load questions. Please retry.', { toastId: 'fetch-questions-error' });
     } finally {
       setLoading(false);
     }
@@ -119,6 +197,29 @@ const Questions = () => {
     }
   };
 
+  const handleSelectAllFiltered = async () => {
+      try {
+          const params = { search: debouncedSearch };
+          Object.keys(filters).forEach(key => {
+              if (filters[key] && filters[key].length > 0) {
+                  params[key] = filters[key].join(',');
+              }
+          });
+          
+          const qualityMin = searchParams.get('qualityMin');
+          const qualityMax = searchParams.get('qualityMax');
+          const missingExplanation = searchParams.get('missingExplanation');
+          if (qualityMin) params.qualityMin = qualityMin;
+          if (qualityMax) params.qualityMax = qualityMax;
+          if (missingExplanation) params.missingExplanation = missingExplanation;
+
+          const res = await api.get('/questions/filtered-ids', { params });
+          setSelectedIds(new Set(res.data.ids));
+      } catch (err) {
+          toast.error("Failed to select all filtered questions.");
+      }
+  };
+
   const handleSelect = (id) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) newSelected.delete(id);
@@ -126,26 +227,30 @@ const Questions = () => {
     setSelectedIds(newSelected);
   };
 
-  const handleBulkDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.size} questions?`)) return;
-    try {
-      await api.post('/questions/bulk-delete', { ids: Array.from(selectedIds) });
-      toast.success(`Deleted ${selectedIds.size} questions.`);
-      setSelectedIds(new Set());
-      fetchQuestions();
-    } catch (err) {
-      toast.error('Bulk delete failed.');
-    }
-  };
-  
-  const handleBulkUpdate = async (field, value) => {
+  const handleBulkConfirm = async (actionType, payload) => {
+      const ids = Array.from(selectedIds);
       try {
-          await api.post('/questions/bulk-update', { ids: Array.from(selectedIds), updateData: { [field]: value } });
-          toast.success(`Updated ${selectedIds.size} questions.`);
+          if (actionType === 'delete') {
+              await api.post('/questions/bulk-delete', { ids });
+              toast.success(`Deleted ${ids.length} questions.`);
+          } else if (actionType === 'archive' || actionType === 'restore') {
+              await api.post('/questions/bulk-update', { ids, updateData: { status: actionType === 'archive' ? 'archived' : 'active' } });
+              toast.success(`${actionType === 'archive' ? 'Archived' : 'Restored'} ${ids.length} questions.`);
+          } else if (actionType === 'subject' || actionType === 'difficulty') {
+              await api.post('/questions/bulk-update', { ids, updateData: payload });
+              toast.success(`Updated ${actionType} for ${ids.length} questions.`);
+          } else if (actionType === 'tags') {
+              await api.post('/questions/bulk-update-tags', { ids, ...payload });
+              toast.success(`Updated tags for ${ids.length} questions.`);
+          } else if (actionType === 'duplicate') {
+              await api.post('/questions/bulk-duplicate', { ids });
+              toast.success(`Duplicated ${ids.length} questions.`);
+          }
           setSelectedIds(new Set());
+          setBulkModalAction(null);
           fetchQuestions();
       } catch (err) {
-          toast.error(`Bulk update failed.`);
+          toast.error(`Bulk operation failed.`);
       }
   };
 
@@ -157,12 +262,12 @@ const Questions = () => {
 
     if (format === 'csv') {
       const csvData = questionsToExport.map(q => ({
-        questionText: q.questionText,
+        questionText: getText(q.questionText),
         subject: q.subject,
         type: q.type,
         difficulty: q.difficulty,
         bloomLevel: q.bloomLevel || 'Remember',
-        correctAnswer: typeof q.correctAnswer === 'string' ? q.correctAnswer : JSON.stringify(q.correctAnswer)
+        correctAnswer: getText(q.correctAnswer)
       }));
       const csvStr = Papa.unparse(csvData);
       const blob = new Blob([csvStr], { type: 'text/csv' });
@@ -186,91 +291,21 @@ const Questions = () => {
     }
   };
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const rows = results.data.slice(0, 50);
-        const valid = [];
-        const invalid = [];
-        const duplicates = [];
-        
-        let existingQs = [];
-        try {
-            const res = await api.get('/questions', { params: { limit: 10000 } });
-            existingQs = res.data.questions || [];
-        } catch(e) {}
 
-        rows.forEach((row, index) => {
-          const qText = row.questionText || row.question || row.Question || '';
-          const subject = row.subject || row.Subject || '';
-          const type = row.type || 'MCQ';
-          const ans = row.correctAnswer || row.CorrectAnswer || '';
-
-          if (!qText.trim() || !ans.trim() || !subject.trim()) {
-            invalid.push({ ...row, _index: index, _reason: 'Missing required fields' });
-            return;
-          }
-          
-          const isDup = existingQs.some(eq => 
-            eq.questionText.trim().toLowerCase().replace(/\s+/g, ' ') === qText.trim().toLowerCase().replace(/\s+/g, ' ') &&
-            eq.subject.trim().toLowerCase() === subject.trim().toLowerCase() &&
-            eq.type === type
-          );
-
-          if (isDup) {
-            duplicates.push({ ...row, _index: index, _reason: 'Duplicate found in DB' });
-          } else {
-            valid.push({ ...row, _index: index });
-          }
-        });
-
-        setCsvPreview({ isOpen: true, rows, valid, invalid, duplicates, fileRows: results.data });
-      }
-    });
-    e.target.value = null;
-  };
-  
-  const confirmCsvImport = async (importOnlyValid = true) => {
-      const rowsToImport = importOnlyValid ? csvPreview.fileRows.filter((_, i) => !csvPreview.invalid.some(inv => inv._index === i) && !csvPreview.duplicates.some(dup => dup._index === i)) : csvPreview.fileRows;
-      
-      if (rowsToImport.length === 0) return toast.warning('No valid rows to import.');
-      
-      const payload = rowsToImport.map(row => ({
-          questionText: row.questionText || row.question || row.Question,
-          subject: row.subject || row.Subject,
-          type: row.type || 'MCQ',
-          correctAnswer: row.correctAnswer || row.CorrectAnswer,
-          difficulty: row.difficulty || 'Medium',
-          options: row.options ? row.options.split('|') : [row.optionA, row.optionB, row.optionC, row.optionD].filter(Boolean),
-          bloomLevel: row.bloomLevel || 'Remember',
-      }));
-
-      try {
-          toast.info('Importing questions...');
-          await api.post('/questions/bulk', { questions: payload });
-          toast.success('Successfully imported questions');
-          setCsvPreview({ isOpen: false, rows: [], valid: [], invalid: [], duplicates: [] });
-          fetchQuestions();
-      } catch (err) {
-          toast.error('Import failed');
-      }
-  };
 
 
 
   const handleEdit = (q) => {
+    // Pass the raw question data — AddQuestionWorkspace.normalizeRichText handles both string and object formats
     setNewQuestion({
         questionText: q.questionText || '',
         subject: q.subject || '',
         difficulty: q.difficulty || 'Medium',
         type: q.type || 'MCQ',
-        options: q.options && q.options.length > 0 ? [...q.options, ...Array(Math.max(0, 4 - q.options.length)).fill('')] : ['', '', '', ''],
-        correctAnswer: q.correctAnswer || '',
+        options: q.options && q.options.length > 0
+            ? q.options
+            : ['', '', '', ''],
+        correctAnswer: getText(q.correctAnswer) || '',
         required: q.required ?? true,
         shuffleOptions: q.shuffleOptions ?? false,
         bloomLevel: q.bloomLevel || 'Remember'
@@ -310,62 +345,7 @@ const Questions = () => {
       );
   }
 
-  if (csvPreview.isOpen) {
-      return (
-          <div className="max-w-[1400px] mx-auto pb-8 px-4">
-              <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">CSV Import Preview</h1>
-                    <div className="flex flex-wrap gap-2 text-sm text-gray-600 dark:text-gray-400 font-medium">
-                        <span className="bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">Total Rows: {csvPreview.fileRows.length}</span>
-                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full">Valid: {csvPreview.valid.length}</span>
-                        <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">Duplicates: {csvPreview.duplicates.length}</span>
-                        <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full">Invalid: {csvPreview.invalid.length}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 w-full md:w-auto">
-                      <button onClick={() => setCsvPreview({isOpen: false, rows: [], valid: [], invalid: [], duplicates: []})} className="flex-1 md:flex-none px-6 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
-                      <button onClick={() => confirmCsvImport(true)} className="flex-1 md:flex-none px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-600/20">Import Valid Rows</button>
-                  </div>
-              </div>
-              
-              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-x-auto shadow-sm p-2">
-                  <table className="w-full text-left border-collapse text-sm">
-                      <thead className="bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                          <tr>
-                              <th className="p-4 font-bold text-gray-600 dark:text-gray-300">Status</th>
-                              <th className="p-4 font-bold text-gray-600 dark:text-gray-300 w-1/2">Question</th>
-                              <th className="p-4 font-bold text-gray-600 dark:text-gray-300">Subject</th>
-                              <th className="p-4 font-bold text-gray-600 dark:text-gray-300">Type</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                          {csvPreview.rows.map((row, i) => {
-                              let status = 'Valid';
-                              let badgeClass = 'bg-green-50 text-green-700 border border-green-200';
-                              if (csvPreview.invalid.some(inv => inv._index === i)) { status = 'Invalid'; badgeClass = 'bg-red-50 text-red-700 border border-red-200'; }
-                              else if (csvPreview.duplicates.some(dup => dup._index === i)) { status = 'Duplicate'; badgeClass = 'bg-yellow-50 text-yellow-700 border border-yellow-200'; }
-                              
-                              return (
-                                  <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
-                                      <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${badgeClass}`}>{status}</span></td>
-                                      <td className="p-4 truncate max-w-xs dark:text-gray-300 font-medium">{row.questionText || row.question || row.Question}</td>
-                                      <td className="p-4 dark:text-gray-400">{row.subject || row.Subject}</td>
-                                      <td className="p-4 dark:text-gray-400">{row.type || 'MCQ'}</td>
-                                  </tr>
-                              );
-                          })}
-                      </tbody>
-                  </table>
-                  {csvPreview.fileRows.length > 50 && (
-                      <div className="p-4 text-center text-sm font-semibold text-gray-500 bg-gray-50 dark:bg-gray-800/50 rounded-b-xl border-t border-gray-100 dark:border-gray-700">
-                          Showing first 50 of {csvPreview.fileRows.length} rows...
-                      </div>
-                  )}
-              </div>
-          </div>
-      );
-  }
+
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-6 pb-8 px-4 relative">
@@ -377,9 +357,8 @@ const Questions = () => {
             <p className="text-gray-500 dark:text-gray-400 text-sm">Manage and organize your academic questions.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            <input type="file" accept=".csv" id="csvUpload" className="hidden" onChange={handleFileUpload} />
-            <button onClick={() => document.getElementById('csvUpload').click()} className="w-full sm:w-auto justify-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700">
-                <Upload className="w-4 h-4" /> Bulk Import CSV
+            <button onClick={() => setIsImportWizardOpen(true)} className="w-full sm:w-auto justify-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <Upload className="w-4 h-4" /> Import Wizard
             </button>
             <Link to="/ai-generator" className="w-full sm:w-auto justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center gap-2">
                 <Plus className="w-4 h-4" /> Add Question
@@ -389,24 +368,45 @@ const Questions = () => {
 
       {/* Sticky Bulk Action Bar */}
       {selectedIds.size > 0 && (
-          <div className="sticky top-4 z-40 bg-indigo-600 text-white rounded-xl shadow-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in slide-in-from-top-4">
-              <div className="flex items-center gap-3">
-                  <span className="font-bold bg-white/20 px-3 py-1 rounded-full text-sm">{selectedIds.size} Selected</span>
-                  <button onClick={() => setSelectedIds(new Set())} className="text-sm font-medium hover:underline text-indigo-100">Clear</button>
+          <div className="sticky top-4 z-40 bg-gray-900 text-white rounded-xl shadow-2xl shadow-gray-900/20 p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in slide-in-from-top-4 border border-gray-700">
+              <div className="flex items-center gap-4">
+                  <span className="font-bold bg-indigo-600 px-3 py-1.5 rounded-lg text-sm">{selectedIds.size} Selected</span>
+                  
+                  {selectedIds.size === questions.length && pagination.total > questions.length && selectedIds.size !== pagination.total && (
+                      <button onClick={handleSelectAllFiltered} className="text-sm font-bold text-indigo-400 hover:text-indigo-300 underline underline-offset-4 decoration-indigo-400/50">
+                          Select all {pagination.total} matching questions
+                      </button>
+                  )}
+                  {selectedIds.size === pagination.total && pagination.total > questions.length && (
+                      <span className="text-sm font-bold text-gray-400">All matching questions selected</span>
+                  )}
+                  <div className="w-px h-6 bg-gray-700 hidden md:block"></div>
+                  <button onClick={() => setSelectedIds(new Set())} className="text-sm font-bold text-gray-400 hover:text-white transition-colors">Clear</button>
               </div>
               <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                  <button onClick={handleBulkDelete} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"><Trash2 className="w-4 h-4" /> Delete</button>
-                  <select onChange={(e) => { if(e.target.value) { handleBulkUpdate('difficulty', e.target.value); e.target.value=''; } }} className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-3 py-2 rounded-lg text-sm font-bold outline-none cursor-pointer transition-colors">
-                      <option value="" className="text-black">Update Difficulty...</option>
-                      <option value="Easy" className="text-black">Easy</option><option value="Medium" className="text-black">Medium</option><option value="Hard" className="text-black">Hard</option>
-                  </select>
+                  <button onClick={() => setBulkModalAction('subject')} className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors" title="Change Subject"><BookOpen className="w-4 h-4" /> <span className="hidden md:inline">Subject</span></button>
+                  <button onClick={() => setBulkModalAction('difficulty')} className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors" title="Change Difficulty"><BarChart className="w-4 h-4" /> <span className="hidden md:inline">Difficulty</span></button>
+                  <button onClick={() => setBulkModalAction('tags')} className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors" title="Manage Tags"><Tag className="w-4 h-4" /> <span className="hidden md:inline">Tags</span></button>
+                  
+                  <div className="w-px h-6 bg-gray-700 mx-1 hidden md:block"></div>
+                  
+                  <button onClick={() => setBulkModalAction('duplicate')} className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors" title="Duplicate"><Copy className="w-4 h-4" /></button>
+                  {filters.status?.includes('archived') ? (
+                      <button onClick={() => setBulkModalAction('restore')} className="bg-white/10 hover:bg-white/20 text-emerald-400 px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors" title="Restore"><Archive className="w-4 h-4 rotate-180" /></button>
+                  ) : (
+                      <button onClick={() => setBulkModalAction('archive')} className="bg-white/10 hover:bg-white/20 text-amber-400 px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors" title="Archive"><Archive className="w-4 h-4" /></button>
+                  )}
+                  <button onClick={() => setBulkModalAction('delete')} className="bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30 px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                  
+                  <div className="w-px h-6 bg-gray-700 mx-1 hidden md:block"></div>
+                  
                   <div className="relative" ref={exportRef}>
-                      <button onClick={() => setIsExportOpen(!isExportOpen)} className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"><Download className="w-4 h-4" /> Export</button>
+                      <button onClick={() => setIsExportOpen(!isExportOpen)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"><Download className="w-4 h-4" /> <span className="hidden md:inline">Export</span></button>
                       {isExportOpen && (
-                          <div className="absolute right-0 top-full mt-2 w-32 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 overflow-hidden">
-                              <button onClick={() => { setIsExportOpen(false); handleExport('csv'); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-bold transition-colors">CSV</button>
-                              <button onClick={() => { setIsExportOpen(false); handleExport('pdf'); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-bold transition-colors">PDF</button>
-                              <button onClick={() => { setIsExportOpen(false); handleExport('docx'); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 font-bold transition-colors">DOCX</button>
+                          <div className="absolute right-0 top-full mt-2 w-32 bg-gray-800 rounded-xl shadow-xl border border-gray-700 py-1 z-50 overflow-hidden">
+                              <button onClick={() => { setIsExportOpen(false); handleExport('csv'); }} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white font-bold transition-colors">CSV</button>
+                              <button onClick={() => { setIsExportOpen(false); handleExport('pdf'); }} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white font-bold transition-colors">PDF</button>
+                              <button onClick={() => { setIsExportOpen(false); handleExport('docx'); }} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white font-bold transition-colors">DOCX</button>
                           </div>
                       )}
                   </div>
@@ -418,48 +418,56 @@ const Questions = () => {
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
           
           {/* Filters Bar (Desktop) & Search */}
-          <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700">
-              <div className="flex flex-col md:flex-row gap-4">
-                  <div className="relative flex-1">
+          <div className="border-b border-gray-100 dark:border-gray-700">
+              <div className="p-4 md:p-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+                  <div className="relative flex-1 w-full max-w-2xl">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <Search className="h-5 w-5 text-gray-400" />
                       </div>
                       <input
                           type="text"
-                          placeholder="Search questions..."
+                          placeholder="Search questions, subjects, tags..."
                           value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onChange={(e) => updateSearchQuery(e.target.value)}
                           className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none text-sm text-gray-900 dark:text-white transition-all font-medium"
                       />
                   </div>
                   
-                  {/* Mobile Filter Toggle */}
-                  <button onClick={() => setIsFilterOpen(!isFilterOpen)} className="md:hidden flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-4 py-3 rounded-xl font-bold text-sm dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                      <ListFilter className="w-4 h-4" /> Filters
-                  </button>
-
-                  {/* Desktop Filters */}
-                  <div className={`flex-col md:flex-row items-center gap-4 ${isFilterOpen ? 'flex' : 'hidden md:flex'}`}>
-                      <select value={filters.subject} onChange={(e) => handleFilterChange('subject', e.target.value)} className="w-full md:w-auto bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                          <option value="">All Subjects</option>
-                          {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <select value={filters.difficulty} onChange={(e) => handleFilterChange('difficulty', e.target.value)} className="w-full md:w-auto bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                          <option value="">All Difficulties</option>
-                          <option value="Easy">Easy</option><option value="Medium">Medium</option><option value="Hard">Hard</option>
-                      </select>
-                      <select value={sort} onChange={(e) => setSort(e.target.value)} className="w-full md:w-auto bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                  <div className="flex items-center gap-3 w-full md:w-auto">
+                      <select value={sort} onChange={(e) => updateSort(e.target.value)} className="w-full md:w-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-sm font-bold text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
                           <option value="newest">Newest First</option>
                           <option value="oldest">Oldest First</option>
                           <option value="az">Subject (A-Z)</option>
                           <option value="za">Subject (Z-A)</option>
                           <option value="difficulty_asc">Difficulty (Asc)</option>
                           <option value="difficulty_desc">Difficulty (Desc)</option>
-                          <option value="type_asc">Type (Asc)</option>
-                          <option value="type_desc">Type (Desc)</option>
                       </select>
+                      
+                      <button 
+                          onClick={() => setIsFilterOpen(!isFilterOpen)} 
+                          className={`flex items-center justify-center gap-2 border px-5 py-3 rounded-xl font-bold text-sm transition-all shadow-sm flex-shrink-0
+                              ${isFilterOpen || Object.values(filters).some(arr => arr.length > 0) 
+                                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-500/30 dark:text-indigo-300' 
+                                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+                              }`}
+                      >
+                          <ListFilter className="w-4 h-4" /> Filters
+                          {Object.values(filters).reduce((acc, curr) => acc + (curr.length > 0 ? 1 : 0), 0) > 0 && (
+                              <span className="ml-1 bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded-md">
+                                  {Object.values(filters).reduce((acc, curr) => acc + (curr.length > 0 ? 1 : 0), 0)}
+                              </span>
+                          )}
+                      </button>
                   </div>
               </div>
+              
+              <AdvancedFilters 
+                  isOpen={isFilterOpen}
+                  onClose={() => setIsFilterOpen(false)}
+                  filters={filters}
+                  setFilters={setFilters}
+                  availableSubjects={subjects}
+              />
           </div>
 
           {/* Data Presentation */}
@@ -472,15 +480,7 @@ const Questions = () => {
                   </div>
               ) : questions.length === 0 ? (
                   (() => {
-                      console.log({
-                          totalQuestions: pagination.total,
-                          absoluteTotal: pagination.absoluteTotal,
-                          filters,
-                          sort,
-                          search: debouncedSearch
-                      });
-                      
-                      if (pagination.absoluteTotal === 0) {
+                      if (pagination.absoluteTotal === 0 && !debouncedSearch && Object.values(filters).every(arr => arr.length === 0)) {
                           return (
                               <div className="text-center py-16">
                                   <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100 dark:border-gray-700">
@@ -499,7 +499,7 @@ const Questions = () => {
                               </div>
                               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No questions found</h3>
                               <p className="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">We couldn't find any questions matching your current filters or search terms.</p>
-                              <button onClick={() => { setFilters({subject:'', difficulty:'', type:''}); setSort('newest'); setSearchQuery(''); }} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">Clear all filters</button>
+                              <button onClick={() => { setSearchParams(new URLSearchParams({ sort: 'newest' }), { replace: true }); }} className="mt-4 text-indigo-600 font-bold text-sm hover:underline">Clear all filters</button>
                           </div>
                       );
                   })()
@@ -526,7 +526,9 @@ const Questions = () => {
                                           <input type="checkbox" checked={selectedIds.has(q._id)} onChange={() => handleSelect(q._id)} className="w-4 h-4 rounded border-gray-300 cursor-pointer" />
                                       </td>
                                       <td className="py-4 pr-4">
-                                          <p className="text-sm font-bold text-gray-900 dark:text-white leading-snug line-clamp-2 max-w-lg">{q.questionText}</p>
+                                          <p className="text-sm font-bold text-gray-900 dark:text-white leading-snug line-clamp-2 max-w-lg">
+                                              {highlightText(q.questionText, debouncedSearch)}
+                                          </p>
                                       </td>
                                       <td className="py-4 text-sm font-bold text-gray-600 dark:text-gray-300">{q.subject}</td>
                                       <td className="py-4">{renderBadge(q.difficulty, 'difficulty')}</td>
@@ -552,7 +554,9 @@ const Questions = () => {
                               <div key={q._id} className={`p-4 rounded-xl border transition-colors shadow-sm ${selectedIds.has(q._id) ? 'border-indigo-500 bg-indigo-50/30 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`} onClick={() => handleSelect(q._id)}>
                                   <div className="flex justify-between items-start mb-3 gap-3">
                                       <input type="checkbox" checked={selectedIds.has(q._id)} readOnly className="w-5 h-5 mt-0.5 pointer-events-none" />
-                                      <p className="text-sm font-bold text-gray-900 dark:text-white line-clamp-3 flex-1">{q.questionText}</p>
+                                      <p className="text-sm font-bold text-gray-900 dark:text-white line-clamp-3 flex-1">
+                                          {highlightText(q.questionText, debouncedSearch)}
+                                      </p>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2 mb-4 ml-8">
                                       <span className="text-[10px] font-bold bg-gray-100 dark:bg-gray-700 px-2.5 py-1 rounded-md text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600">{q.subject}</span>
@@ -593,6 +597,22 @@ const Questions = () => {
               </div>
           )}
       </div>
+      
+      <BulkActionModal 
+          isOpen={bulkModalAction !== null}
+          onClose={() => setBulkModalAction(null)}
+          actionType={bulkModalAction}
+          selectedCount={selectedIds.size}
+          onConfirm={handleBulkConfirm}
+          subjects={subjects}
+      />
+      
+      <ImportWizard 
+          isOpen={isImportWizardOpen}
+          onClose={() => setIsImportWizardOpen(false)}
+          onImportSuccess={fetchQuestions}
+      />
+      
     </div>
   );
 };

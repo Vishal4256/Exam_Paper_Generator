@@ -1,12 +1,14 @@
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { NotificationsProvider } from './context/NotificationsContext';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Import Components
 import Navbar from './components/Navbar';
 import DashboardLayout from './components/DashboardLayout';
+import ErrorBoundary from './components/ErrorBoundary';
 import Footer from './components/Footer';
 
 // Import Pages
@@ -16,6 +18,7 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
+import Analytics from './pages/Analytics';
 import Questions from './pages/Questions';
 import GenerateExam from './pages/GenerateExam';
 import ViewExams from './pages/ViewExams';
@@ -35,50 +38,54 @@ function App() {
   const router = createBrowserRouter([
     {
       path: '/',
-      element: <><Navbar /><Home /><Footer /></>,
+      element: <ErrorBoundary><Navbar /><Home /><Footer /></ErrorBoundary>,
     },
     {
       path: '/pricing',
-      element: <><Navbar /><Pricing /><Footer /></>,
+      element: <ErrorBoundary><Navbar /><Pricing /><Footer /></ErrorBoundary>,
     },
     {
       path: '/security',
-      element: <><Navbar /><Security /><Footer /></>,
+      element: <ErrorBoundary><Navbar /><Security /><Footer /></ErrorBoundary>,
     },
     {
       path: '/privacy-policy',
-      element: <><Navbar /><PrivacyPolicy /><Footer /></>,
+      element: <ErrorBoundary><Navbar /><PrivacyPolicy /><Footer /></ErrorBoundary>,
     },
     {
       path: '/terms',
-      element: <><Navbar /><Terms /><Footer /></>,
+      element: <ErrorBoundary><Navbar /><Terms /><Footer /></ErrorBoundary>,
     },
     {
       path: '/contact',
-      element: <><Navbar /><Contact /><Footer /></>,
+      element: <ErrorBoundary><Navbar /><Contact /><Footer /></ErrorBoundary>,
     },
     {
       path: '/login',
-      element: <Login />,
+      element: <ErrorBoundary><Login /></ErrorBoundary>,
     },
     {
       path: '/register',
-      element: <Register />,
+      element: <ErrorBoundary><Register /></ErrorBoundary>,
     },
     {
       path: '/forgot-password',
-      element: <ForgotPassword />,
+      element: <ErrorBoundary><ForgotPassword /></ErrorBoundary>,
     },
     {
       path: '/reset-password/:token',
-      element: <ResetPassword />,
+      element: <ErrorBoundary><ResetPassword /></ErrorBoundary>,
     },
     {
-      element: <DashboardLayout />,
+      element: <ErrorBoundary><DashboardLayout /></ErrorBoundary>,
       children: [
         {
           path: '/dashboard',
           element: <Dashboard />,
+        },
+        {
+          path: '/analytics',
+          element: <Analytics />,
         },
         {
           path: '/questions',
@@ -121,8 +128,10 @@ function App() {
   ])
   return (
     <AuthProvider>
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
-      <RouterProvider router={router} />
+      <NotificationsProvider>
+        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+        <RouterProvider router={router} />
+      </NotificationsProvider>
     </AuthProvider>
   );
 }

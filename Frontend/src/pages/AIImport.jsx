@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, FileText, Image as ImageIcon, Loader2, Save, Download, RefreshCw, Trash2, CheckCircle, FileOutput, FilePlus2, BarChart2, FileUp, Sparkles, Copy, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import api from '../utils/axiosConfig';
+import { getText } from '../utils/richText';
 import { toast } from 'react-toastify';
 import NumericInput from '../components/NumericInput';
 
@@ -385,7 +386,7 @@ const AIImport = () => {
     if (questionsToExport.length === 0) return toast.error("Select questions to export.");
     let csv = 'Question,Type,Difficulty,Subject,Marks,Bloom Level,Answer\n';
     questionsToExport.forEach(q => {
-      csv += `"${q.questionText}","${q.type}","${q.difficulty}","${q.subject}","${q.marks || 1}","${q.bloomLevel || ''}","${q.correctAnswer}"\n`;
+      csv += `"${getText(q.questionText)}","${q.type}","${q.difficulty}","${q.subject}","${q.marks || 1}","${q.bloomLevel || ''}","${getText(q.correctAnswer)}"\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -855,12 +856,12 @@ const AIImport = () => {
                           <div className="p-3 text-xs grid grid-cols-2 gap-4">
                             <div className="border-r border-gray-200 dark:border-gray-700 pr-4">
                               <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Generated</span>
-                              <p className="text-gray-800 dark:text-gray-200 font-medium mb-1">{q.questionText}</p>
+                              <p className="text-gray-800 dark:text-gray-200 font-medium mb-1">{getText(q.questionText)}</p>
                               <span className="text-[10px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-1.5 py-0.5 rounded">{q.subject}</span>
                             </div>
                             <div>
                               <span className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Existing in Bank</span>
-                              <p className="text-gray-800 dark:text-gray-200 font-medium mb-1">{q.similarQuestionText}</p>
+                              <p className="text-gray-800 dark:text-gray-200 font-medium mb-1">{getText(q.similarQuestionText)}</p>
                               <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded">{q.similarQuestionSubject}</span>
                             </div>
                           </div>
@@ -884,7 +885,7 @@ const AIImport = () => {
                     </div>
 
                     <textarea 
-                      value={q.questionText} 
+                      value={getText(q.questionText)} 
                       onChange={e => updateQuestion(idx, 'questionText', e.target.value)}
                       className="w-full text-sm font-medium text-gray-900 dark:text-white bg-transparent border border-transparent hover:border-gray-200 dark:hover:border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded p-1 mb-2 resize-none transition-colors"
                       rows="3"
@@ -896,7 +897,7 @@ const AIImport = () => {
                           <div key={i} className="flex items-start gap-2 bg-gray-50 dark:bg-gray-700/30 rounded px-2 py-1">
                             <span className="text-xs font-bold text-gray-400 mt-1">{String.fromCharCode(65 + i)}.</span>
                             <input 
-                              value={opt}
+                              value={getText(opt)}
                               onChange={e => {
                                 const newOpts = [...q.options];
                                 newOpts[i] = e.target.value;

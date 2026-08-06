@@ -13,12 +13,15 @@ const QuestionSchema = new mongoose.Schema({
         required: true
     },
     questionText: {
-        type: String,
-        required: true
+        content: { type: mongoose.Schema.Types.Mixed, default: {} },
+        plainText: { type: String, required: true },
+        htmlCache: { type: String, default: '' }
     },
     options: [
         {
-            type: String
+            content: { type: mongoose.Schema.Types.Mixed, default: {} },
+            plainText: { type: String, default: '' },
+            htmlCache: { type: String, default: '' }
         }
     ], // Only used for MCQ
     correctAnswer: {
@@ -51,12 +54,28 @@ const QuestionSchema = new mongoose.Schema({
         default: 1
     },
     explanation: {
-        type: String,
-        default: ''
+        content: { type: mongoose.Schema.Types.Mixed, default: {} },
+        plainText: { type: String, default: '' },
+        htmlCache: { type: String, default: '' }
     },
     tags: [
         { type: String }
     ],
+    keywords: [
+        { type: String }
+    ],
+    chapter: {
+        type: String,
+        default: ''
+    },
+    subTopic: {
+        type: String,
+        default: ''
+    },
+    estimatedTime: {
+        type: Number, // in minutes
+        default: 1
+    },
     usageCount: {
         type: Number,
         default: 0
@@ -65,11 +84,16 @@ const QuestionSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
-        source: {
+    source: {
         type: String,
-        enum: ['manual', 'ai'],
         default: 'manual'
     },
+    // Phase 3.2: Analytics fields
+    qualityScore: { type: Number, default: null },
+    predictedDifficulty: { type: String, default: null },
+    readabilityScore: { type: Number, default: null },
+    duplicateProbability: { type: Number, default: null },
+    lastAnalyzed: { type: Date, default: null },
     required: {
         type: Boolean,
         default: true
@@ -80,7 +104,7 @@ const QuestionSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['active', 'draft'],
+        enum: ['active', 'draft', 'archived'],
         default: 'active'
     },
     bloomLevel: {
@@ -89,5 +113,20 @@ const QuestionSchema = new mongoose.Schema({
         default: 'Remember'
     }
 });
+
+// Text index for global search
+QuestionSchema.index({ 
+    'questionText.plainText': 'text', 
+    subject: 'text', 
+    topic: 'text', 
+    subTopic: 'text', 
+    tags: 'text', 
+    'explanation.plainText': 'text', 
+    keywords: 'text' 
+});
+
+// Compound indexes for common advanced filters
+QuestionSchema.index({ user: 1, subject: 1, difficulty: 1, type: 1, status: 1 });
+QuestionSchema.index({ user: 1, createdAt: -1 });
 
 export default mongoose.model('Question', QuestionSchema);

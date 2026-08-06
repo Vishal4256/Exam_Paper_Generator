@@ -40,7 +40,7 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('loginTime');
-      toast.error('Session expired. Please login again.');
+      toast.error('Session expired. Please login again.', { toastId: 'session-expired' });
       setTimeout(() => {
         window.location.href = '/login';
       }, 1500);

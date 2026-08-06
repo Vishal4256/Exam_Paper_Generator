@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/axiosConfig';
+import { getText } from '../utils/richText';
 import { Sparkles, Save, RefreshCw, BookOpen, Layers, BarChart, Target, List, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import NumericInput from '../components/NumericInput';
@@ -255,7 +256,7 @@ const AIGenerator = () => {
                                                             }}
                                                         />
                                                     ) : (
-                                                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-4">{q.questionText}</p>
+                                                        <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-4">{getText(q.questionText)}</p>
                                                     )}
                                                     
                                                     {q.options && q.options.length > 0 && (
@@ -278,7 +279,7 @@ const AIGenerator = () => {
                                                                             }}
                                                                         />
                                                                     ) : (
-                                                                        opt
+                                                                        getText(opt)
                                                                     )}
                                                                 </div>
                                                             ))}
@@ -299,7 +300,7 @@ const AIGenerator = () => {
                                                                 }}
                                                             />
                                                         ) : (
-                                                            <p className="text-xs font-bold text-gray-900 dark:text-white mb-2">{q.correctAnswer}</p>
+                                                            <p className="text-xs font-bold text-gray-900 dark:text-white mb-2">{getText(q.correctAnswer)}</p>
                                                         )}
                                                         
                                                         {editingIndex === idx ? (
@@ -313,7 +314,7 @@ const AIGenerator = () => {
                                                                 }}
                                                             />
                                                         ) : (
-                                                            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-relaxed">{q.explanation}</p>
+                                                            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-relaxed">{getText(q.explanation)}</p>
                                                         )}
                                                     </div>
                                                     

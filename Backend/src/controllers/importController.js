@@ -5,6 +5,7 @@ import Question from '../models/Question.model.js';
 import PDFDocument from 'pdfkit';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import Fuse from 'fuse.js';
+import { sanitizeTipTapJson } from '../utils/sanitize.js';
 
 // Helper to get AI response
 const getAIResponse = async (prompt) => {
@@ -204,6 +205,187 @@ export const checkSimilarity = async (req, res) => {
     } catch (error) {
         console.error("Similarity check error:", error);
         res.status(500).json({ success: false, msg: "Failed to check similarity." });
+    }
+};
+
+// ============================================
+// IMPORT WIZARD (Phase 2, Step 4)
+// ============================================
+
+const normalizeStr = (str) => {
+    if (!str) return '';
+    return str.toLowerCase().replace(/\s+/g, ' ').trim().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '');
+};
+
+export const importWizardAnalyze = async (req, res) => {
+    try {
+        const { rows } = req.body;
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(400).json({ msg: "No rows provided for analysis." });
+        }
+
+        const existingQs = await Question.find({}, 'questionText plainText subject type').lean();
+        
+        // Prepare Fuse instance for Level 2 duplicate detection
+        const fuse = new Fuse(existingQs, {
+            keys: ['plainText', 'questionText'],
+            includeScore: true,
+            threshold: 0.2 // A score of 0.0 is perfect match, 0.2 is very close
+        });
+
+        const errors = [];
+        const duplicates = [];
+        const processedRows = [];
+
+        rows.forEach((row, idx) => {
+            const qText = row.questionText || '';
+            const subject = row.subject || '';
+            const ans = row.correctAnswer || '';
+            
+            // 1. Validation
+            if (!qText.trim() || !ans.trim() || !subject.trim()) {
+                errors.push({ row: idx + 1, message: "Missing required fields (Question, Subject, or Answer)" });
+                processedRows.push({ ...row, _rowId: idx, _status: 'invalid' });
+                return;
+            }
+
+            const incomingNorm = normalizeStr(qText);
+            
+            // 2. Duplicate Detection
+            // Level 1: Exact Match
+            const exactMatch = existingQs.find(eq => 
+                normalizeStr(eq.plainText || eq.questionText) === incomingNorm &&
+                eq.subject.toLowerCase().trim() === subject.toLowerCase().trim()
+            );
+
+            if (exactMatch) {
+                duplicates.push({
+                    rowId: idx,
+                    row: idx + 1,
+                    type: 'exact',
+                    confidence: 100,
+                    existingText: exactMatch.plainText || exactMatch.questionText,
+                    incomingText: qText,
+                    existingId: exactMatch._id
+                });
+                processedRows.push({ ...row, _rowId: idx, _status: 'duplicate', _existingId: exactMatch._id });
+                return;
+            }
+
+            // Level 2: Fuzzy Match (Fuse)
+            const fuzzyResults = fuse.search(qText);
+            const closeMatch = fuzzyResults.find(r => 
+                r.item.subject.toLowerCase().trim() === subject.toLowerCase().trim()
+            );
+
+            if (closeMatch) {
+                const confidence = Math.round((1 - closeMatch.score) * 100);
+                duplicates.push({
+                    rowId: idx,
+                    row: idx + 1,
+                    type: 'fuzzy',
+                    confidence,
+                    existingText: closeMatch.item.plainText || closeMatch.item.questionText,
+                    incomingText: qText,
+                    existingId: closeMatch.item._id
+                });
+                processedRows.push({ ...row, _rowId: idx, _status: 'duplicate', _existingId: closeMatch.item._id });
+                return;
+            }
+
+            // Level 3: Unique
+            processedRows.push({ ...row, _rowId: idx, _status: 'valid' });
+        });
+
+        res.status(200).json({
+            totalRows: rows.length,
+            errorCount: errors.length,
+            duplicateCount: duplicates.length,
+            errors,
+            duplicates,
+            rows: processedRows
+        });
+    } catch (error) {
+        console.error("Wizard analyze error:", error);
+        res.status(500).json({ msg: "Analysis failed", error: error.message });
+    }
+};
+
+export const importWizardExecute = async (req, res) => {
+    try {
+        const { rows, decisions } = req.body;
+        
+        let importedCount = 0;
+        let replacedCount = 0;
+        let skippedCount = 0;
+        
+        const wrapText = (text) => {
+            if (!text) return sanitizeTipTapJson({ content: { type: 'doc', content: [] }, plainText: '', htmlCache: '' });
+            if (typeof text === 'object' && text.content) return sanitizeTipTapJson(text); 
+            return sanitizeTipTapJson({
+                content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] },
+                plainText: text,
+                htmlCache: `<p>${text}</p>`
+            });
+        };
+
+        for (const row of rows) {
+            if (row._status === 'invalid') {
+                skippedCount++;
+                continue;
+            }
+
+            const decision = decisions[row._rowId]; // 'skip', 'replace', 'new'
+            
+            if (row._status === 'duplicate') {
+                if (!decision || decision === 'skip') {
+                    skippedCount++;
+                    continue;
+                }
+                
+                const qData = {
+                    questionText: wrapText(row.questionText),
+                    subject: row.subject,
+                    type: row.type || 'MCQ',
+                    difficulty: row.difficulty || 'Medium',
+                    bloomLevel: row.bloomLevel || 'Remember',
+                    correctAnswer: wrapText(row.correctAnswer),
+                    options: row.options && Array.isArray(row.options) 
+                        ? row.options.map(o => wrapText(o)) 
+                        : [wrapText(row.optionA), wrapText(row.optionB), wrapText(row.optionC), wrapText(row.optionD)].filter(o => o.plainText),
+                    explanation: wrapText(row.explanation)
+                };
+
+                if (decision === 'replace' && row._existingId) {
+                    await Question.findByIdAndUpdate(row._existingId, qData);
+                    replacedCount++;
+                } else if (decision === 'new') {
+                    await Question.create(qData);
+                    importedCount++;
+                }
+            } else if (row._status === 'valid') {
+                // Import valid row
+                const qData = {
+                    questionText: wrapText(row.questionText),
+                    subject: row.subject,
+                    type: row.type || 'MCQ',
+                    difficulty: row.difficulty || 'Medium',
+                    bloomLevel: row.bloomLevel || 'Remember',
+                    correctAnswer: wrapText(row.correctAnswer),
+                    options: row.options && Array.isArray(row.options) 
+                        ? row.options.map(o => wrapText(o)) 
+                        : [wrapText(row.optionA), wrapText(row.optionB), wrapText(row.optionC), wrapText(row.optionD)].filter(o => o.plainText),
+                    explanation: wrapText(row.explanation)
+                };
+                await Question.create(qData);
+                importedCount++;
+            }
+        }
+        
+        res.status(200).json({ importedCount, replacedCount, skippedCount });
+    } catch (error) {
+        console.error("Wizard execute error:", error);
+        res.status(500).json({ msg: "Execution failed", error: error.message });
     }
 };
 

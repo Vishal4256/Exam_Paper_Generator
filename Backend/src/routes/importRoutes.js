@@ -7,7 +7,9 @@ import {
     saveBulkQuestions,
     exportPDF,
     exportDOCX,
-    checkSimilarity
+    checkSimilarity,
+    importWizardAnalyze,
+    importWizardExecute
 } from '../controllers/importController.js';
 import auth from '../middleware/authMiddleware.js';
 
@@ -25,5 +27,9 @@ router.post('/check-similarity', checkSimilarity);
 router.post('/save', saveBulkQuestions);
 router.post('/export/pdf', exportPDF);
 router.post('/export/docx', exportDOCX);
+
+// Import Wizard (Phase 2, Step 4)
+router.post('/analyze', importWizardAnalyze);
+router.post('/execute', importWizardExecute);
 
 export default router;

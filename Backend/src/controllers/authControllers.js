@@ -6,13 +6,9 @@ import User from '../models/User.model.js';
 // 1. Register User
 const register = async (req, res) => {
     try {
-        console.log("STEP 1 - Register request received");
         const { name, email, password } = req.body;
 
-        console.log("STEP 2 - Input validated"); 
-
         const existingUser = await User.findOne({ email });
-        console.log("STEP 3 - Existing user checked");
         
         if (existingUser) {
             return res.status(409).json({ success: false, msg: "An account with this email already exists.", message: "An account with this email already exists." });
@@ -27,12 +23,10 @@ const register = async (req, res) => {
             password: hashedPassword
         });
         await newUser.save();
-        console.log("STEP 4 - User saved");
 
         return res.status(201).json({ success: true, message: "Registration successful. Please login." });
 
     } catch (err) {
-        console.error(`ERROR in register(): ${err.message}\n${err.stack}`);
         return res.status(500).json({ success: false, msg: "Registration Failed: " + err.message, message: err.message });
     }
 };
@@ -51,7 +45,6 @@ const login = async (req, res) => {
         const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '30d' });
         return res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
     } catch (err) {
-        console.error(`ERROR in login(): ${err.message}\n${err.stack}`);
         return res.status(500).json({ msg: "Server Error: " + err.message });
     }
 };
@@ -59,7 +52,6 @@ const login = async (req, res) => {
 // 5. Forgot Password - Send Reset Link
 const forgotPassword = async (req, res) => {
     try {
-        console.log("STEP 1 - forgotPassword request received");
         const { email } = req.body;
         const user = await User.findOne({ email });
 
@@ -72,23 +64,17 @@ const forgotPassword = async (req, res) => {
         user.resetPasswordToken = token;
         user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
         await user.save();
-        console.log("STEP 2 - User saved with reset token");
 
         // Construct reset link
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const resetLink = `${frontendUrl}/reset-password/${token}`;
 
-        // Log the link to the console for testing purposes
-        console.log(`Password Reset Link for ${email}: ${resetLink}`);
-
-        console.log("STEP 3 - Response sent");
         return res.status(200).json({
             msg: "Password reset link generated.",
             resetLink // Included in response for testing since email is disabled
         });
 
     } catch (err) {
-        console.error(`ERROR in forgotPassword(): ${err.message}\n${err.stack}`);
         return res.status(500).json({ msg: "Server Error: " + err.message });
     }
 };

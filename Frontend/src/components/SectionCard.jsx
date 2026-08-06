@@ -44,6 +44,7 @@ const SectionCard = ({
                     </div>
                     <div className="flex-1 md:w-64">
                         <input 
+                            id={`section-name-${index}`}
                             type="text" 
                             placeholder="Section Name (e.g. Section A)"
                             value={section.sectionName}

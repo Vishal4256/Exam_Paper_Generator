@@ -3,9 +3,25 @@ import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { sanitizeTipTapJson } from '../utils/sanitize.js';
+import { runQualityAnalysis } from '../services/questionQualityAnalyzer/qualityAnalyzer.js';
+import { invalidateAnalyticsCache } from './analyticsController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const wrapText = (text) => {
+    if (!text) return { content: { type: 'doc', content: [] }, plainText: '', htmlCache: '' };
+    if (typeof text === 'object' && text.content) return text;
+    return {
+        content: {
+            type: 'doc',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: String(text) }] }]
+        },
+        plainText: String(text),
+        htmlCache: `<p>${String(text)}</p>`
+    };
+};
 
 const addQuestion = async (req, res) => {
     try {
@@ -25,7 +41,11 @@ const addQuestion = async (req, res) => {
             options = req.body.options;
         }
 
-        options = options.filter(opt => opt && opt.trim() !== '');
+        // We can't just check `opt.trim()` since options are now RichText objects
+        options = options.filter(opt => {
+            if (typeof opt === 'string') return opt.trim() !== '';
+            return opt && opt.plainText && opt.plainText.trim() !== '';
+        });
 
         let parsedTags = [];
         if (typeof tags === 'string') {
@@ -46,14 +66,14 @@ const addQuestion = async (req, res) => {
         const newQuestion = new Question({
             user: req.user.id,
             type,
-            questionText,
-            options,
-            correctAnswer,
+            questionText: sanitizeTipTapJson(questionText),
+            options: sanitizeTipTapJson(options),
+            correctAnswer: sanitizeTipTapJson(correctAnswer),
             subject,
             difficulty,
             topic,
             marks,
-            explanation,
+            explanation: sanitizeTipTapJson(explanation),
             tags: parsedTags,
             source,
             image: imagePath,
@@ -63,6 +83,9 @@ const addQuestion = async (req, res) => {
         });
 
         const question = await newQuestion.save();
+        
+        invalidateAnalyticsCache(req.user.id);
+        
         res.status(201).json(question);
     } catch (err) {
         if (req.file) {
@@ -84,6 +107,11 @@ const updateQuestion = async (req, res) => {
         if (updateData.options && typeof updateData.options === 'string') {
             try { updateData.options = JSON.parse(updateData.options); } catch(e) {}
         }
+        if (updateData.questionText) updateData.questionText = sanitizeTipTapJson(updateData.questionText);
+        if (updateData.options) updateData.options = sanitizeTipTapJson(updateData.options);
+        if (updateData.correctAnswer) updateData.correctAnswer = sanitizeTipTapJson(updateData.correctAnswer);
+        if (updateData.explanation) updateData.explanation = sanitizeTipTapJson(updateData.explanation);
+
         if (updateData.tags && typeof updateData.tags === 'string') {
             try { updateData.tags = JSON.parse(updateData.tags); } catch(e) { updateData.tags = updateData.tags.split(','); }
         }
@@ -97,6 +125,9 @@ const updateQuestion = async (req, res) => {
         }
 
         const updated = await Question.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        
+        invalidateAnalyticsCache(req.user.id);
+        
         res.json(updated);
     } catch (err) {
         console.error('Update question error:', err);
@@ -106,23 +137,59 @@ const updateQuestion = async (req, res) => {
 
 const getQuestions = async (req, res) => {
     try {
-        const { subject, difficulty, type, search, sort, page = 1, limit = 50 } = req.query;
+        const { subject, topic, subTopic, difficulty, type, status, bloomLevel, tags, search, sort, page = 1, limit = 50, qualityMin, qualityMax, missingExplanation } = req.query;
         // Cast the user ID to an ObjectId so it matches in aggregation pipelines
         let query = { user: new mongoose.Types.ObjectId(req.user.id) };
         
-        if (subject && subject !== 'All') query.subject = subject;
-        if (difficulty && difficulty !== 'All') query.difficulty = difficulty;
-        if (type && type !== 'All') query.type = type;
+
+
+        // Helper to handle comma-separated values for multi-select
+        const parseMulti = (val) => val.split(',').map(v => v.trim()).filter(Boolean);
+
+        if (subject && subject !== 'All') query.subject = { $in: parseMulti(subject) };
+        if (topic) query.topic = { $in: parseMulti(topic) };
+        if (subTopic) query.subTopic = { $in: parseMulti(subTopic) };
+        if (difficulty && difficulty !== 'All') query.difficulty = { $in: parseMulti(difficulty) };
+        if (type && type !== 'All') query.type = { $in: parseMulti(type) };
+        if (status) query.status = { $in: parseMulti(status) };
+        if (bloomLevel) query.bloomLevel = { $in: parseMulti(bloomLevel) };
+        if (tags) query.tags = { $in: parseMulti(tags) };
+
+        if (qualityMin !== undefined || qualityMax !== undefined) {
+            const condition = {};
+            if (qualityMin !== undefined) condition.$gte = Number(qualityMin);
+            if (qualityMax !== undefined) condition.$lte = Number(qualityMax);
+            
+            if (qualityMax !== undefined && Number(qualityMax) < 60) {
+                query.$or = [
+                    { qualityScore: condition },
+                    { qualityScore: null }
+                ];
+            } else {
+                query.qualityScore = condition;
+            }
+        }
+
+        if (missingExplanation === 'true') {
+            query['explanation.plainText'] = '';
+        }
+
         if (search) {
-            const regex = new RegExp(search, 'i');
+            // Using regex for partial matching (very useful for type-ahead), backed by indexes where possible
+            const regex = new RegExp(search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
             query.$or = [
                 { questionText: regex },
+                { 'questionText.plainText': regex },
                 { subject: regex },
                 { topic: regex },
+                { subTopic: regex },
+                { explanation: regex },
+                { 'explanation.plainText': regex },
                 { difficulty: regex },
                 { type: regex },
                 { bloomLevel: regex },
-                { tags: regex }
+                { tags: regex },
+                { keywords: regex }
             ];
         }
         
@@ -141,7 +208,24 @@ const getQuestions = async (req, res) => {
         
         const skip = (page - 1) * limit;
         const total = await Question.countDocuments(query);
-        const absoluteTotal = await Question.countDocuments({ user: req.user.id });
+        const absoluteTotal = await Question.countDocuments({ user: new mongoose.Types.ObjectId(req.user.id) });
+
+        // ── DIAGNOSTIC: counts + sample doc ─────────────────────────────
+        const globalTotal = await Question.countDocuments({});
+        const sampleDoc = await Question.findOne({});
+        console.log('Total docs in collection (all users):', globalTotal);
+        console.log('Matched by query (owned):', total);
+        console.log('absoluteTotal:', absoluteTotal);
+        if (sampleDoc) {
+            console.log('Sample doc _id:', sampleDoc._id.toString());
+            console.log('Sample doc user field:', sampleDoc.user);
+            console.log('Sample doc user field type:', typeof sampleDoc.user);
+            console.log('Sample doc user.toString():', sampleDoc.user?.toString?.());
+            console.log('IDs match?', sampleDoc.user?.toString() === req.user.id);
+        }
+        console.log('Full query filter:', JSON.stringify(query));
+        console.log('══════════════════════════════════════════════════════\n');
+        // ────────────────────────────────────────────────────────────────
         
         let questions;
         if (sort === 'difficulty_asc' || sort === 'difficulty_desc') {
@@ -186,6 +270,68 @@ const getQuestions = async (req, res) => {
     }
 };
 
+const getFilteredQuestionIds = async (req, res) => {
+    try {
+        const { subject, topic, subTopic, difficulty, type, status, bloomLevel, tags, search, qualityMin, qualityMax, missingExplanation } = req.query;
+        let query = { user: new mongoose.Types.ObjectId(req.user.id) };
+        
+        const parseMulti = (val) => val.split(',').map(v => v.trim()).filter(Boolean);
+
+        if (subject && subject !== 'All') query.subject = { $in: parseMulti(subject) };
+        if (topic) query.topic = { $in: parseMulti(topic) };
+        if (subTopic) query.subTopic = { $in: parseMulti(subTopic) };
+        if (difficulty && difficulty !== 'All') query.difficulty = { $in: parseMulti(difficulty) };
+        if (type && type !== 'All') query.type = { $in: parseMulti(type) };
+        if (status) query.status = { $in: parseMulti(status) };
+        if (bloomLevel) query.bloomLevel = { $in: parseMulti(bloomLevel) };
+        if (tags) query.tags = { $in: parseMulti(tags) };
+
+        if (qualityMin !== undefined || qualityMax !== undefined) {
+            const condition = {};
+            if (qualityMin !== undefined) condition.$gte = Number(qualityMin);
+            if (qualityMax !== undefined) condition.$lte = Number(qualityMax);
+            
+            if (qualityMax !== undefined && Number(qualityMax) < 60) {
+                query.$or = [
+                    { qualityScore: condition },
+                    { qualityScore: null }
+                ];
+            } else {
+                query.qualityScore = condition;
+            }
+        }
+
+        if (missingExplanation === 'true') {
+            query['explanation.plainText'] = '';
+        }
+
+        if (search) {
+            const regex = new RegExp(search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
+            query.$or = [
+                { questionText: regex },
+                { 'questionText.plainText': regex },
+                { subject: regex },
+                { topic: regex },
+                { subTopic: regex },
+                { explanation: regex },
+                { 'explanation.plainText': regex },
+                { difficulty: regex },
+                { type: regex },
+                { bloomLevel: regex },
+                { tags: regex },
+                { keywords: regex }
+            ];
+        }
+
+        const questions = await Question.find(query).select('_id');
+        const ids = questions.map(q => q._id);
+        res.json({ ids });
+    } catch (err) {
+        console.error('Fetch filtered IDs error:', err);
+        res.status(500).json({ msg: "Server Error", error: err.message });
+    }
+};
+
 const getQuestion = async (req, res) => {
     try {
         const question = await Question.findOne({ _id: req.params.id, user: req.user.id });
@@ -207,6 +353,9 @@ const deleteQuestion = async (req, res) => {
         }
 
         await Question.findByIdAndDelete(req.params.id);
+        
+        invalidateAnalyticsCache(req.user.id);
+        
         res.json({ msg: "Question deleted successfully" });
     } catch (err) {
         res.status(500).json({ msg: "Server Error", error: err.message });
@@ -230,6 +379,9 @@ const bulkDeleteQuestions = async (req, res) => {
         }
 
         const result = await Question.deleteMany({ _id: { $in: ids }, user: req.user.id });
+        
+        invalidateAnalyticsCache(req.user.id);
+        
         res.json({ msg: `Successfully deleted ${result.deletedCount} questions.` });
     } catch (err) {
         console.error('Bulk delete error:', err);
@@ -244,7 +396,7 @@ const bulkUpdateQuestions = async (req, res) => {
             return res.status(400).json({ msg: "Invalid request. Provide ids array and updateData object." });
         }
 
-        const allowedUpdates = ['subject', 'difficulty', 'bloomLevel'];
+        const allowedUpdates = ['subject', 'difficulty', 'bloomLevel', 'status', 'topic', 'subTopic'];
         const sanitizedUpdate = {};
         for (let key of allowedUpdates) {
             if (updateData[key] !== undefined) {
@@ -261,9 +413,79 @@ const bulkUpdateQuestions = async (req, res) => {
             { $set: sanitizedUpdate }
         );
         
+        invalidateAnalyticsCache(req.user.id);
+        
         res.json({ msg: `Successfully updated ${result.modifiedCount} questions.` });
     } catch (err) {
         console.error('Bulk update error:', err);
+        res.status(500).json({ msg: "Server Error", error: err.message });
+    }
+};
+
+const bulkUpdateTags = async (req, res) => {
+    try {
+        const { ids, tags, action } = req.body; // action: 'add', 'remove', 'replace'
+        if (!ids || !Array.isArray(ids) || ids.length === 0 || !tags || !Array.isArray(tags) || !action) {
+            return res.status(400).json({ msg: "Invalid request. Provide ids, tags array, and action." });
+        }
+
+        let updateOp;
+        if (action === 'add') {
+            updateOp = { $addToSet: { tags: { $each: tags } } };
+        } else if (action === 'remove') {
+            updateOp = { $pullAll: { tags: tags } };
+        } else if (action === 'replace') {
+            updateOp = { $set: { tags: tags } };
+        } else {
+            return res.status(400).json({ msg: "Invalid action." });
+        }
+
+        const result = await Question.updateMany(
+            { _id: { $in: ids }, user: req.user.id },
+            updateOp
+        );
+        
+        invalidateAnalyticsCache(req.user.id);
+        
+        res.json({ msg: `Successfully updated tags for ${result.modifiedCount} questions.` });
+    } catch (err) {
+        console.error('Bulk tag update error:', err);
+        res.status(500).json({ msg: "Server Error", error: err.message });
+    }
+};
+
+const bulkDuplicateQuestions = async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ msg: "Invalid request. Provide ids array." });
+        }
+
+        const questions = await Question.find({ _id: { $in: ids }, user: req.user.id }).lean();
+        
+        if (questions.length === 0) {
+            return res.status(404).json({ msg: "No valid questions found to duplicate." });
+        }
+
+        const duplicates = questions.map(q => {
+            const { _id, createdAt, updatedAt, __v, ...rest } = q;
+            return {
+                ...rest,
+                questionText: typeof q.questionText === 'object' 
+                    ? { ...q.questionText, plainText: `${q.questionText.plainText} (Copy)` }
+                    : `${q.questionText} (Copy)`,
+                status: 'draft', // Usually good practice to make copies drafts initially
+                createdAt: new Date()
+            };
+        });
+
+        const result = await Question.insertMany(duplicates);
+        
+        invalidateAnalyticsCache(req.user.id);
+        
+        res.status(201).json({ msg: `Successfully duplicated ${result.length} questions.` });
+    } catch (err) {
+        console.error('Bulk duplicate error:', err);
         res.status(500).json({ msg: "Server Error", error: err.message });
     }
 };
@@ -374,14 +596,14 @@ const bulkImportQuestions = async (req, res) => {
                             const newQ = new Question({
                                 user: req.user.id,
                                 type: type,
-                                questionText: questionText.trim(),
-                                options: options,
+                                questionText: wrapText(questionText.trim()),
+                                options: options.map(o => wrapText(o)),
                                 correctAnswer: correctAnswer.trim(),
                                 subject: subject.trim(),
                                 difficulty: difficulty,
                                 topic: row.topic ? row.topic.trim() : '',
                                 marks: row.marks ? Number(row.marks) : 1,
-                                explanation: row.explanation ? row.explanation.trim() : '',
+                                explanation: wrapText(row.explanation ? row.explanation.trim() : ''),
                                 tags: tags,
                                 source: 'manual'
                             });
@@ -436,20 +658,21 @@ const bulkAddQuestions = async (req, res) => {
         for (const row of questions) {
             if (!row.questionText || !row.correctAnswer || !row.subject) continue;
 
-            const exists = await Question.findOne({ questionText: row.questionText, user: req.user.id });
+            const plainQuestionText = typeof row.questionText === 'object' ? row.questionText.plainText : row.questionText;
+            const exists = await Question.findOne({ 'questionText.plainText': plainQuestionText, user: req.user.id });
             if (exists) continue; // Prevent duplicates
 
             const newQ = new Question({
                 user: req.user.id,
                 type: row.type || 'MCQ',
-                questionText: row.questionText,
-                options: row.options || [],
-                correctAnswer: row.correctAnswer,
+                questionText: sanitizeTipTapJson(wrapText(row.questionText)),
+                options: (row.options || []).map(o => sanitizeTipTapJson(wrapText(o))),
+                correctAnswer: sanitizeTipTapJson(wrapText(row.correctAnswer)),
                 subject: row.subject,
                 difficulty: row.difficulty || 'Medium',
                 topic: row.topic || '',
                 marks: row.marks ? Number(row.marks) : 1,
-                explanation: row.explanation || '',
+                explanation: sanitizeTipTapJson(wrapText(row.explanation || '')),
                 tags: row.tags || [],
                 source: row.source || 'ai'
             });
@@ -458,6 +681,8 @@ const bulkAddQuestions = async (req, res) => {
             importedCount++;
         }
 
+        invalidateAnalyticsCache(req.user.id);
+
         res.status(201).json({ msg: `Successfully imported ${importedCount} questions` });
     } catch (err) {
         console.error('Bulk add error:', err);
@@ -465,4 +690,22 @@ const bulkAddQuestions = async (req, res) => {
     }
 };
 
-export { addQuestion, updateQuestion, getQuestions, getQuestion, deleteQuestion, bulkImportQuestions, bulkAddQuestions, bulkDeleteQuestions, bulkUpdateQuestions };
+const analyzeQuestionQuality = async (req, res) => {
+    try {
+        const { questionData } = req.body;
+        if (!questionData || !questionData.plainText) {
+            return res.status(400).json({ msg: "Question plain text is required." });
+        }
+
+        // Fetch all questions for duplicate detection context
+        const allQuestions = await Question.find({ user: req.user.id }, 'plainText questionText subject');
+        
+        const analysis = await runQualityAnalysis(questionData, allQuestions);
+        return res.status(200).json(analysis);
+    } catch (err) {
+        console.error("Quality Analysis Error:", err);
+        return res.status(500).json({ msg: "Failed to analyze question quality.", error: err.message });
+    }
+};
+
+export { addQuestion, updateQuestion, getQuestions, getFilteredQuestionIds, getQuestion, deleteQuestion, bulkImportQuestions, bulkAddQuestions, bulkDeleteQuestions, bulkUpdateQuestions, bulkUpdateTags, bulkDuplicateQuestions, analyzeQuestionQuality };

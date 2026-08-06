@@ -3,6 +3,9 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './src/swagger.js';
 
 // Load environment variables before anything else
 dotenv.config();
@@ -21,6 +24,8 @@ import importRoutes from './src/routes/importRoutes.js';
 import jobRoutes from './src/routes/jobRoutes.js';
 import draftRoutes from './src/routes/draftRoutes.js';
 import historyRoutes from './src/routes/historyRoutes.js';
+import uploadRoutes from './src/routes/uploadRoutes.js';
+import analyticsRoutes from './src/routes/analytics.route.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,6 +67,8 @@ app.use(
   })
 );
 
+import { generalLimiter, uploadLimiter } from './src/middleware/rateLimiter.js';
+
 // ======================
 // Static Files
 // ======================
@@ -94,18 +101,22 @@ app.get('/api/health', (req, res) => {
 // ======================
 // API Routes
 // ======================
-app.use('/api/auth', authRoutes);
-app.use('/api/import', importRoutes);
-app.use('/api/questions', questionRoutes);
-app.use('/api/exams', examRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/templates', templateRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/contact', contactRoutes);
-app.use('/api/jobs', jobRoutes);
-app.use('/api/drafts', draftRoutes);
-app.use('/api/history', historyRoutes);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+app.use('/api/auth', authRoutes); // Auth limiter applied inside auth.route.js
+app.use('/api/import', generalLimiter, importRoutes);
+app.use('/api/questions', generalLimiter, questionRoutes);
+app.use('/api/exams', generalLimiter, examRoutes);
+app.use('/api/ai', generalLimiter, aiRoutes);
+app.use('/api/templates', generalLimiter, templateRoutes);
+app.use('/api/settings', generalLimiter, settingsRoutes);
+app.use('/api/users', generalLimiter, userRoutes);
+app.use('/api/contact', generalLimiter, contactRoutes);
+app.use('/api/jobs', generalLimiter, jobRoutes);
+app.use('/api/drafts', generalLimiter, draftRoutes);
+app.use('/api/history', generalLimiter, historyRoutes);
+app.use('/api/upload', uploadLimiter, uploadRoutes);
+app.use('/api/analytics', generalLimiter, analyticsRoutes);
 
 // ======================
 // 404 Handler

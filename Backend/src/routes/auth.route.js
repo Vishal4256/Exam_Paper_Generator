@@ -9,20 +9,18 @@ import {
     updatePassword
 } from '../controllers/authControllers.js';
 import auth from '../middleware/authMiddleware.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
 // Registration routes
-router.post('/register', (req, res, next) => {
-    console.log(`[ROUTE] POST /auth/register body:`, req.body);
-    next();
-}, register);
+router.post('/register', authLimiter, register);
 
 // Login route
-router.post('/login', login);
+router.post('/login', authLimiter, login);
 
 // Password reset routes
-router.post('/forgot-password', forgotPassword);
+router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 
 // Protected routes
