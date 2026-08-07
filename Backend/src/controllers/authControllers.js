@@ -36,7 +36,15 @@ const register = async (req, res) => {
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const user = await User.findOne({ email });
+        const normalizedEmail = email.trim().toLowerCase();
+        const user = await User.findOne({ email: normalizedEmail });
+
+        console.log("[LOGIN]", {
+            email: normalizedEmail,
+            userFound: !!user,
+            hasPasswordHash: !!user?.password
+        });
+
         if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
 
         const isMatch = await bcrypt.compare(password, user.password);

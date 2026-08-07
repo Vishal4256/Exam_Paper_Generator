@@ -61,6 +61,20 @@ For detailed architecture and database schema, see:
 
 ---
 
+## 🛠️ Environment Setup
+
+### Frontend
+```bash
+cp .env.example .env
+```
+Then replace the placeholder values with your own credentials.
+
+### Backend
+```bash
+cp .env.example .env
+```
+Then replace the placeholder values with your own credentials.
+
 ## 🛠️ Installation & Setup
 
 1. **Clone the repository**
@@ -73,8 +87,6 @@ For detailed architecture and database schema, see:
    ```bash
    cd Backend
    npm install
-   cp .env.example .env
-   # Populate .env with your MongoDB URI, JWT Secret, and Gemini API Key
    npm run dev
    ```
 
