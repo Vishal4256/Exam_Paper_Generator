@@ -266,7 +266,19 @@ const GenerateExam = () => {
         return { qCount, totalM, sections: formData.blueprint.length };
     }, [formData.blueprint]);
 
+    const initialized = useRef(false);
+
     useEffect(() => {
+        return () => {
+            initialized.current = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!initialized.current) {
+            initialized.current = true;
+            return;
+        }
         if (formData.totalMarks !== stats.totalM) {
             handleChange('totalMarks', stats.totalM);
         }
